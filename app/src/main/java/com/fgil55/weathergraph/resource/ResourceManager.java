@@ -1,4 +1,4 @@
-package com.fgil55.weathertest.resource;
+package com.fgil55.weathergraph.resource;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;

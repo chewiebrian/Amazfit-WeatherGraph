@@ -1,9 +1,12 @@
-package com.fgil55.weathertest.widget;
+package com.fgil55.weathergraph.widget;
 
 import android.app.Service;
 import android.graphics.Canvas;
 
-public interface Widget { //extends MultipleWatchDataListener, HasSlptViewComponent {
+import com.fgil55.weathergraph.data.MultipleWatchDataListener;
+
+
+public interface Widget extends MultipleWatchDataListener, HasSlptViewComponent {
 
     int getX();
 

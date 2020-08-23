@@ -1,5 +1,7 @@
-package com.fgil55.weathertest.data;
+package com.fgil55.weathergraph.weather;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.ISODateTimeFormat;
 import org.json.JSONException;
@@ -56,5 +58,33 @@ public class ForecastItem {
 
     public float getPrecipitation() {
         return precipitation;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ForecastItem that = (ForecastItem) o;
+
+        return new EqualsBuilder()
+                .append(temp, that.temp)
+                .append(cloudArea, that.cloudArea)
+                .append(cloudGroup, that.cloudGroup)
+                .append(precipitation, that.precipitation)
+                .append(time, that.time)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(time)
+                .append(temp)
+                .append(cloudArea)
+                .append(cloudGroup)
+                .append(precipitation)
+                .toHashCode();
     }
 }

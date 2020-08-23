@@ -1,4 +1,4 @@
-package com.fgil55.weathertest.widget;
+package com.fgil55.weathergraph.widget;
 
 import java.util.LinkedList;
 

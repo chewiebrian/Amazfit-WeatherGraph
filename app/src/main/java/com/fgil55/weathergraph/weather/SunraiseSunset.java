@@ -1,5 +1,7 @@
-package com.fgil55.weathertest.data;
+package com.fgil55.weathergraph.weather;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.ISODateTimeFormat;
@@ -34,5 +36,29 @@ public class SunraiseSunset {
 
     public LocalDateTime getSunset() {
         return sunset;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SunraiseSunset that = (SunraiseSunset) o;
+
+        return new EqualsBuilder()
+                .append(date, that.date)
+                .append(sunrise, that.sunrise)
+                .append(sunset, that.sunset)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(date)
+                .append(sunrise)
+                .append(sunset)
+                .toHashCode();
     }
 }

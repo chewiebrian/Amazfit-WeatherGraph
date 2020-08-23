@@ -1,7 +1,5 @@
-package com.fgil55.weathertest.widget;
+package com.fgil55.weathergraph.weather;
 
-import android.app.Service;
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.CornerPathEffect;
@@ -9,18 +7,11 @@ import android.graphics.DashPathEffect;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PathEffect;
 import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.text.TextPaint;
 
-import com.fgil55.weathertest.data.ForecastItem;
-import com.fgil55.weathertest.data.SunraiseSunset;
-import com.fgil55.weathertest.data.WeatherData;
-import com.fgil55.weathertest.resource.ResourceManager;
-
 import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
@@ -31,18 +22,13 @@ import org.joda.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-public class WeatherGraphWidget implements Widget {
+public class WeatherRenderer {
 
-    WeatherData weatherData = WeatherData.INSTANCE;
-    private final Context context;
     final int widgetWidth = 320;
     final int widgetHeight = 300 / 2;
-    final int maxHours = weatherData.getMaxDays() * 24;
+    final int maxHours = WeatherData.INSTANCE.getMaxDays() * 24;
     final int pixelsPerHour = widgetWidth / maxHours;
     final int paddingX = (widgetWidth - (pixelsPerHour * maxHours)) / 2;
 
@@ -73,8 +59,32 @@ public class WeatherGraphWidget implements Widget {
     final Paint weakPrecipLinePaint = new Paint();
     final Paint strongPrecipLinePaint = new Paint();
 
-    public WeatherGraphWidget(Context context) {
-        this.context = context;
+
+    int dateToX(LocalDateTime date, LocalDateTime now) {
+        LocalDateTime max = now.plusDays(WeatherData.INSTANCE.getMaxDays());
+        if (date.isBefore(now)) return paddingX;
+        if (date.isAfter(max)) return widgetWidth - paddingX;
+
+        return paddingX + (Period.fieldDifference(now, date).toStandardHours().getHours() * pixelsPerHour);
+    }
+
+
+    int tempToY(float temp, WeatherData weatherData) {
+        float thisTempDist = (temp - weatherData.getMinTemp());
+        if (thisTempDist == 0) return tempMinY;
+        return tempMinY - (int) ((thisTempDist * tempDeltaY) / weatherData.getDeltaTemp());
+    }
+
+    float cloudToY(float cloudArea, boolean upper) {
+        double v = 14 * (cloudArea / 100.0);
+        return (float) (upper ? cloudY - v : cloudY + v);
+    }
+
+    boolean isOutOfScreen(LocalDateTime date, LocalDateTime now, WeatherData weatherData) {
+        return date.isBefore(now) || date.isAfter(now.plusDays(weatherData.getMaxDays()).plusHours(5));
+    }
+
+    public WeatherRenderer() {
         mPaintDay.setColor(colorDay);
         mPaintNight.setColor(colorNight);
 
@@ -120,66 +130,10 @@ public class WeatherGraphWidget implements Widget {
         strongPrecipLinePaint.setPathEffect(new DashPathEffect(new float[]{1, 3}, 0));
     }
 
-    @Override
-    public int getX() {
-        return 0;
-    }
-
-    @Override
-    public int getY() {
-        return 0;
-    }
-
-    @Override
-    public void setX(int x) {
-
-    }
-
-    @Override
-    public void setY(int y) {
-
-    }
-
-    @Override
-    public void init(Service service) {
-
-    }
-
-    private LocalDateTime getNow() {
-        return LocalDateTime.now();
-    }
-
-    int dateToX(LocalDateTime date) {
-        LocalDateTime now = getNow();
-        LocalDateTime max = now.plusDays(weatherData.getMaxDays());
-        if (date.isBefore(now)) return paddingX;
-        if (date.isAfter(max)) return widgetWidth - paddingX;
-
-        return paddingX + (Period.fieldDifference(now, date).toStandardHours().getHours() * pixelsPerHour);
-    }
-
-
-    int tempToY(float temp) {
-        float thisTempDist = (temp - weatherData.getMinTemp());
-        if (thisTempDist == 0) return tempMinY;
-        return tempMinY - (int) ((thisTempDist * tempDeltaY) / weatherData.getDeltaTemp());
-    }
-
-    float cloudToY(float cloudArea, boolean upper) {
-        double v = 14 * (cloudArea / 100.0);
-        return (float) (upper ? cloudY - v : cloudY + v);
-    }
-
-    boolean isOutOfScreen(LocalDateTime date) {
-        LocalDateTime now = getNow().plusDays(weatherData.getMaxDays()).plusHours(5);
-        return date.isBefore(getNow()) || date.isAfter(now);
-    }
-
-    @Override
-    public void draw(Canvas canvas, float width, float height, float centerX, float centerY) {
-        if (weatherData.isEmpty()) return;
-
-        LocalDateTime now = getNow();
+    public void render(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+        if (weatherData.isEmpty()) {
+            return;
+        }
 
         for (int i = 0; i <= weatherData.getMaxDays(); i++) {
             SunraiseSunset sunraiseSunset = weatherData.getSunraiseSunsets().get(i);
@@ -189,13 +143,13 @@ public class WeatherGraphWidget implements Widget {
             LocalDateTime quarterday = currentDate.toLocalDateTime(LocalTime.parse("06:00:00"));
             LocalDateTime threequarterday = currentDate.toLocalDateTime(LocalTime.parse("18:00:00"));
             LocalDateTime midnight = currentDate.plusDays(i + 1).toLocalDateTime(LocalTime.parse("00:00:00"));
-            int sunraiseX = dateToX(sunraiseSunset.getSunrise());
-            int sunsetX = dateToX(sunraiseSunset.getSunset());
-            int startX = dateToX(start);
-            int midnightX = dateToX(midnight);
-            int middayX = dateToX(midday);
-            int quarterdayX = dateToX(quarterday);
-            int threequarterdayX = dateToX(threequarterday);
+            int sunraiseX = dateToX(sunraiseSunset.getSunrise(), now);
+            int sunsetX = dateToX(sunraiseSunset.getSunset(), now);
+            int startX = dateToX(start, now);
+            int midnightX = dateToX(midnight, now);
+            int middayX = dateToX(midday, now);
+            int quarterdayX = dateToX(quarterday, now);
+            int threequarterdayX = dateToX(threequarterday, now);
 
             int gradientSize = 10;
 
@@ -213,40 +167,38 @@ public class WeatherGraphWidget implements Widget {
             if (middayX != sunsetX) canvas.drawRect(middayX, 0, sunsetX, widgetHeight, mPaintDay);
             canvas.drawRect(sunsetX, 0, midnightX, widgetHeight, mPaintNight);
 
-            if (!isOutOfScreen(sunraiseSunset.getSunrise())) {
+            if (!isOutOfScreen(sunraiseSunset.getSunrise(), now, weatherData)) {
                 canvas.drawRect(sunraiseX - gradientSize, 0, sunraiseX + gradientSize, widgetHeight, mPaintDawn);
                 canvas.drawRect(startX, 0, startX, widgetHeight, daySeparatorPaint);
             }
 
-            if (!isOutOfScreen(sunraiseSunset.getSunset()))
+            if (!isOutOfScreen(sunraiseSunset.getSunset(), now, weatherData))
                 canvas.drawRect(sunsetX - gradientSize, 0, Math.min(sunsetX + gradientSize, widgetWidth - paddingX), widgetHeight, mPaintDusk);
 
             // draw days of week names
-            if (!isOutOfScreen(start))
+            if (!isOutOfScreen(start, now, weatherData))
                 canvas.drawText(getDayName(start), startX, widgetHeight + dayNamesPaint.getTextSize(), dayNamesPaint);
 
             // draw daylight duration line
             canvas.drawLine(sunraiseX, widgetHeight + dayDurationPaint.getStrokeWidth(), sunsetX, widgetHeight + dayDurationPaint.getStrokeWidth(), dayDurationPaint);
 
-            if (!isOutOfScreen(midday))
+            if (!isOutOfScreen(midday, now, weatherData))
                 canvas.drawLine(middayX, widgetHeight + dayDurationPaint.getStrokeWidth(), middayX, widgetHeight + dayDurationPaint.getStrokeWidth() + 8, dayHoursPaint);
-            if (!isOutOfScreen(quarterday))
+            if (!isOutOfScreen(quarterday, now, weatherData))
                 canvas.drawLine(quarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth(), quarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth() + 4, dayHoursPaint);
-            if (!isOutOfScreen(threequarterday))
+            if (!isOutOfScreen(threequarterday, now, weatherData))
                 canvas.drawLine(threequarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth(), threequarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth() + 4, dayHoursPaint);
         }
 
 
-        drawClouds(canvas);
-        drawTemperature(canvas);
-        drawPrecipitation(canvas);
-        drawPlace(canvas);
-        drawMinMaxTemp(canvas);
-
-        drawClock(canvas, now);
+        drawClouds(canvas, weatherData, now);
+        drawTemperature(canvas, weatherData, now);
+        drawPrecipitation(canvas, weatherData, now);
+        drawPlace(canvas, weatherData);
+        drawMinMaxTemp(canvas, weatherData, now);
     }
 
-    private void drawMinMaxTemp(Canvas canvas) {
+    private void drawMinMaxTemp(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
         TextPaint minMaxTempPaint = new TextPaint();
         minMaxTempPaint.setColor(Color.WHITE);
         minMaxTempPaint.setAntiAlias(true);
@@ -268,25 +220,25 @@ public class WeatherGraphWidget implements Widget {
                 if (forecast.getTime().isAfter(startDateTime) && forecast.getTime().isBefore(endDateTime)) {
                     if (forecast.getTemp() < minTemp) {
                         minTemp = forecast.getTemp();
-                        minTempX = dateToX(forecast.getTime());
+                        minTempX = dateToX(forecast.getTime(), now);
                     }
                     if (forecast.getTemp() > maxTemp) {
                         maxTemp = forecast.getTemp();
-                        maxTempX = dateToX(forecast.getTime());
+                        maxTempX = dateToX(forecast.getTime(), now);
                     }
                 }
             }
 
-            if (!isOutOfScreen(startDateTime)) {
-                canvas.drawText(String.valueOf((int) minTemp), minTempX - 4, tempToY(minTemp) - 10, minMaxTempPaint);
+            if (!isOutOfScreen(startDateTime, now, weatherData) && minTempX != paddingX) {
+                canvas.drawText(String.valueOf((int) minTemp), minTempX - 4, tempToY(minTemp, weatherData) - 10, minMaxTempPaint);
             }
-            if (!isOutOfScreen(endDateTime)) {
-                canvas.drawText(String.valueOf((int) maxTemp), maxTempX - 2, tempToY(maxTemp) - 6, minMaxTempPaint);
+            if (!isOutOfScreen(endDateTime, now, weatherData) && maxTempX != paddingX) {
+                canvas.drawText(String.valueOf((int) maxTemp), maxTempX - 2, tempToY(maxTemp, weatherData) - 6, minMaxTempPaint);
             }
         }
     }
 
-    private void drawPlace(Canvas canvas) {
+    private void drawPlace(Canvas canvas, WeatherData weatherData) {
         Paint currentConditionsPaint = new Paint();
         currentConditionsPaint.setAntiAlias(true);
         currentConditionsPaint.setColor(Color.WHITE);
@@ -301,20 +253,20 @@ public class WeatherGraphWidget implements Widget {
         return StringUtils.stripAccents(StringUtils.left(StringUtils.upperCase(date.toString(dayNamesFormatter)), 2));
     }
 
-    private void drawTemperature(Canvas canvas) {
+    private void drawTemperature(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
         if (weatherData.getForecasts().isEmpty()) return;
 
         final Path tempPath = new Path();
         final Path tempPathLine = new Path();
 
         tempPath.moveTo(paddingX, widgetHeight);
-        tempPathLine.moveTo(paddingX, tempToY(weatherData.getForecasts().get(0).getTemp()));
+        tempPathLine.moveTo(paddingX, tempToY(weatherData.getForecasts().get(0).getTemp(), weatherData));
 
         weatherData.getForecasts().stream()
-                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime()))
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .forEach(forecastItem -> {
-                    final int x = dateToX(forecastItem.getTime());
-                    final int y = tempToY(forecastItem.getTemp());
+                    final int x = dateToX(forecastItem.getTime(), now);
+                    final int y = tempToY(forecastItem.getTemp(), weatherData);
                     tempPath.lineTo(x, y);
                     tempPathLine.lineTo(x, y);
                 });
@@ -327,7 +279,7 @@ public class WeatherGraphWidget implements Widget {
         canvas.drawPath(tempPathLine, tempPaintLine);
     }
 
-    private void drawClouds(Canvas canvas) {
+    private void drawClouds(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
         if (weatherData.getForecasts().isEmpty()) return;
 
         final Path cloudPath = new Path();
@@ -336,7 +288,7 @@ public class WeatherGraphWidget implements Widget {
 
         final Collection<List<ForecastItem>> cloudGroups = weatherData.getForecasts().stream()
                 .filter(forecastItem -> forecastItem.getCloudArea() > 0f)
-                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime()))
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .collect(Collectors.groupingBy(ForecastItem::getCloudGroup))
                 .values();
 
@@ -344,25 +296,25 @@ public class WeatherGraphWidget implements Widget {
             final ForecastItem first = forecasts.get(0);
             final ForecastItem last = forecasts.get(forecasts.size() - 1);
 
-            cloudPath.moveTo(dateToX(first.getTime()), cloudY);
-            cloudPathLineLower.moveTo(dateToX(first.getTime()), cloudY);
-            cloudPathLineUpper.moveTo(dateToX(first.getTime()), cloudY);
+            cloudPath.moveTo(dateToX(first.getTime(), now), cloudY);
+            cloudPathLineLower.moveTo(dateToX(first.getTime(), now), cloudY);
+            cloudPathLineUpper.moveTo(dateToX(first.getTime(), now), cloudY);
             forecasts.stream().forEach(forecast -> {
-                cloudPath.lineTo(dateToX(forecast.getTime()), cloudToY(forecast.getCloudArea(), true));
-                cloudPathLineUpper.lineTo(dateToX(forecast.getTime()), cloudToY(forecast.getCloudArea(), true));
+                cloudPath.lineTo(dateToX(forecast.getTime(), now), cloudToY(forecast.getCloudArea(), true));
+                cloudPathLineUpper.lineTo(dateToX(forecast.getTime(), now), cloudToY(forecast.getCloudArea(), true));
             });
-            cloudPath.lineTo(dateToX(last.getTime()), cloudY);
-            cloudPathLineUpper.lineTo(dateToX(last.getTime()), cloudY);
+            cloudPath.lineTo(dateToX(last.getTime(), now), cloudY);
+            cloudPathLineUpper.lineTo(dateToX(last.getTime(), now), cloudY);
 
             //cloudPath.close();
 
-            cloudPath.moveTo(dateToX(first.getTime()), cloudY);
+            cloudPath.moveTo(dateToX(first.getTime(), now), cloudY);
             forecasts.stream().forEach(forecast -> {
-                cloudPath.lineTo(dateToX(forecast.getTime()), cloudToY(forecast.getCloudArea(), false));
-                cloudPathLineLower.lineTo(dateToX(forecast.getTime()), cloudToY(forecast.getCloudArea(), false));
+                cloudPath.lineTo(dateToX(forecast.getTime(), now), cloudToY(forecast.getCloudArea(), false));
+                cloudPathLineLower.lineTo(dateToX(forecast.getTime(), now), cloudToY(forecast.getCloudArea(), false));
             });
-            cloudPath.lineTo(dateToX(last.getTime()), cloudY);
-            cloudPathLineLower.lineTo(dateToX(last.getTime()), cloudY);
+            cloudPath.lineTo(dateToX(last.getTime(), now), cloudY);
+            cloudPathLineLower.lineTo(dateToX(last.getTime(), now), cloudY);
 
             cloudPath.close();
         }
@@ -373,44 +325,18 @@ public class WeatherGraphWidget implements Widget {
         return;
     }
 
-    private void drawPrecipitation(Canvas canvas) {
-        if (weatherData.getForecasts().isEmpty()) return;
-
+    private void drawPrecipitation(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
         final Paint precipPaint = new Paint();
         precipPaint.setColor(Color.parseColor("#0000ff"));
         precipPaint.setStrokeWidth(4.0f);
 
         weatherData.getForecasts().stream()
-                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime()) && forecastItem.getPrecipitation() > 0f)
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData) && forecastItem.getPrecipitation() > 0f)
                 .forEach(forecastItem -> {
-                    int x = dateToX(forecastItem.getTime());
-                    canvas.drawLine(x, widgetHeight, x, widgetHeight - Math.min((forecastItem.getPrecipitation() * 20), widgetHeight / 6), precipPaint);
+                    float x = dateToX(forecastItem.getTime(), now);
+                    float y = widgetHeight - Math.min((forecastItem.getPrecipitation() * 20), widgetHeight / 6);
+                    canvas.drawLine(x, widgetHeight, x, y, precipPaint);
                 });
     }
 
-    private void drawClock(Canvas canvas, LocalDateTime now) {
-        String dateString = now.toString("E d MMM").toLowerCase().replaceAll("\\.", "");
-        String timeString = now.toString("H:mm");
-
-        TextPaint datePaint = new TextPaint();
-        datePaint.setAntiAlias(true);
-        datePaint.setColor(Color.WHITE);
-        datePaint.setTypeface(Typeface.DEFAULT_BOLD);
-        datePaint.setTextAlign(Paint.Align.CENTER);
-        datePaint.setTextSize(20.0f);
-
-        TextPaint timePaint = new TextPaint();
-        timePaint.setAntiAlias(true);
-        timePaint.setColor(Color.WHITE);
-//        timePaint.setTypeface(Typeface.DEFAULT_BOLD);
-        timePaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
-        timePaint.setTextAlign(Paint.Align.CENTER);
-        timePaint.setTextSize(90.0f);
-
-        float dateWidth = datePaint.measureText(dateString);
-        float timeWidth = timePaint.measureText(timeString);
-
-        canvas.drawText(dateString, canvas.getWidth() / 2, canvas.getHeight() - 112, datePaint);
-        canvas.drawText(timeString, canvas.getWidth() / 2, canvas.getHeight() - 40, timePaint);
-    }
 }
