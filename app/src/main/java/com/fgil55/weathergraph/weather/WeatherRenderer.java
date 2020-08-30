@@ -55,6 +55,9 @@ public class WeatherRenderer {
     final Paint tempPaintLine = new Paint();
     final Paint cloudsPaint = new Paint();
     final Paint cloudsLinePaint = new Paint();
+    final TextPaint minMaxTempPaint = new TextPaint();
+    final Paint currentConditionsPaint = new Paint();
+    final Paint clear = new Paint();
 
     final Paint weakPrecipLinePaint = new Paint();
     final Paint strongPrecipLinePaint = new Paint();
@@ -65,7 +68,7 @@ public class WeatherRenderer {
         if (date.isBefore(now)) return paddingX;
         if (date.isAfter(max)) return widgetWidth - paddingX;
 
-        return paddingX + (Period.fieldDifference(now, date).toStandardHours().getHours() * pixelsPerHour);
+        return paddingX + (Period.fieldDifference(now, date).toDurationFrom(now.toDateTime()).toStandardHours().getHours() * pixelsPerHour);
     }
 
 
@@ -81,10 +84,13 @@ public class WeatherRenderer {
     }
 
     boolean isOutOfScreen(LocalDateTime date, LocalDateTime now, WeatherData weatherData) {
-        return date.isBefore(now) || date.isAfter(now.plusDays(weatherData.getMaxDays()).plusHours(5));
+        return date.isBefore(now) || date.isAfter(now.plusDays(weatherData.getMaxDays()).plusHours(6));
     }
 
     public WeatherRenderer() {
+        clear.setColor(Color.BLACK);
+        clear.setStyle(Paint.Style.FILL);
+
         mPaintDay.setColor(colorDay);
         mPaintNight.setColor(colorNight);
 
@@ -128,6 +134,20 @@ public class WeatherRenderer {
         strongPrecipLinePaint.setStyle(Paint.Style.STROKE);
         strongPrecipLinePaint.setStrokeWidth(2.0f);
         strongPrecipLinePaint.setPathEffect(new DashPathEffect(new float[]{1, 3}, 0));
+
+        minMaxTempPaint.setColor(Color.WHITE);
+        minMaxTempPaint.setAntiAlias(true);
+        minMaxTempPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        minMaxTempPaint.setTextSize(12.0f);
+        minMaxTempPaint.setTextAlign(Paint.Align.CENTER);
+        minMaxTempPaint.setShadowLayer(0.01f, 1, 1, Color.BLACK);
+
+        currentConditionsPaint.setAntiAlias(true);
+        currentConditionsPaint.setColor(Color.WHITE);
+        currentConditionsPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        currentConditionsPaint.setTextSize(20.0f);
+        currentConditionsPaint.setTextAlign(Paint.Align.CENTER);
+        currentConditionsPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
     }
 
     public void render(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
@@ -135,14 +155,13 @@ public class WeatherRenderer {
             return;
         }
 
-        for (int i = 0; i <= weatherData.getMaxDays(); i++) {
-            SunraiseSunset sunraiseSunset = weatherData.getSunraiseSunsets().get(i);
+        for (SunraiseSunset sunraiseSunset : weatherData.getSunraiseSunsets()) {
             LocalDate currentDate = sunraiseSunset.getDate();
             LocalDateTime start = currentDate.toLocalDateTime(LocalTime.parse("00:00:00"));
             LocalDateTime midday = currentDate.toLocalDateTime(LocalTime.parse("12:00:00"));
             LocalDateTime quarterday = currentDate.toLocalDateTime(LocalTime.parse("06:00:00"));
             LocalDateTime threequarterday = currentDate.toLocalDateTime(LocalTime.parse("18:00:00"));
-            LocalDateTime midnight = currentDate.plusDays(i + 1).toLocalDateTime(LocalTime.parse("00:00:00"));
+            LocalDateTime midnight = currentDate.plusDays(1).toLocalDateTime(LocalTime.parse("00:00:00"));
             int sunraiseX = dateToX(sunraiseSunset.getSunrise(), now);
             int sunsetX = dateToX(sunraiseSunset.getSunset(), now);
             int startX = dateToX(start, now);
@@ -190,6 +209,9 @@ public class WeatherRenderer {
                 canvas.drawLine(threequarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth(), threequarterdayX, widgetHeight + dayDurationPaint.getStrokeWidth() + 4, dayHoursPaint);
         }
 
+        //clear borders
+        canvas.drawRect(0, 0, paddingX, widgetHeight, clear);
+        canvas.drawRect(widgetWidth - paddingX, 0, widgetWidth, widgetHeight, clear);
 
         drawClouds(canvas, weatherData, now);
         drawTemperature(canvas, weatherData, now);
@@ -199,24 +221,15 @@ public class WeatherRenderer {
     }
 
     private void drawMinMaxTemp(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
-        TextPaint minMaxTempPaint = new TextPaint();
-        minMaxTempPaint.setColor(Color.WHITE);
-        minMaxTempPaint.setAntiAlias(true);
-        minMaxTempPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        minMaxTempPaint.setTextSize(12.0f);
-        minMaxTempPaint.setTextAlign(Paint.Align.CENTER);
-        minMaxTempPaint.setShadowLayer(0.01f, 1, 1, Color.BLACK);
-
-        for (int i = 0; i <= weatherData.getMaxDays(); i++) {
-            final LocalDate currentDate = weatherData.getSunraiseSunsets().get(i).getDate();
+        for (SunraiseSunset sunraiseSunset : weatherData.getSunraiseSunsets()) {
+            final LocalDate currentDate = sunraiseSunset.getDate();
             LocalDateTime startDateTime = currentDate.toLocalDateTime(LocalTime.MIDNIGHT);
             LocalDateTime endDateTime = currentDate.toLocalDateTime(LocalTime.parse("23:59:59"));
             float minTemp = Integer.MAX_VALUE;
             float maxTemp = Integer.MIN_VALUE;
             float minTempX = 0f, maxTempX = 0f;
 
-            for (int j = 0; j < weatherData.getForecasts().size(); j++) {
-                ForecastItem forecast = weatherData.getForecasts().get(j);
+            for (ForecastItem forecast : weatherData.getForecasts()) {
                 if (forecast.getTime().isAfter(startDateTime) && forecast.getTime().isBefore(endDateTime)) {
                     if (forecast.getTemp() < minTemp) {
                         minTemp = forecast.getTemp();
@@ -239,14 +252,7 @@ public class WeatherRenderer {
     }
 
     private void drawPlace(Canvas canvas, WeatherData weatherData) {
-        Paint currentConditionsPaint = new Paint();
-        currentConditionsPaint.setAntiAlias(true);
-        currentConditionsPaint.setColor(Color.WHITE);
-        currentConditionsPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        currentConditionsPaint.setTextSize(18.0f);
-        currentConditionsPaint.setTextAlign(Paint.Align.CENTER);
-        currentConditionsPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
-        canvas.drawText(weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+        canvas.drawText(weatherData.isRefreshing() ? "Updating" : weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
     }
 
     private String getDayName(LocalDateTime date) {
@@ -328,13 +334,14 @@ public class WeatherRenderer {
     private void drawPrecipitation(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
         final Paint precipPaint = new Paint();
         precipPaint.setColor(Color.parseColor("#0000ff"));
-        precipPaint.setStrokeWidth(4.0f);
+        precipPaint.setStrokeWidth(3.0f);
+        precipPaint.setAlpha(200);
 
         weatherData.getForecasts().stream()
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData) && forecastItem.getPrecipitation() > 0f)
                 .forEach(forecastItem -> {
                     float x = dateToX(forecastItem.getTime(), now);
-                    float y = widgetHeight - Math.min((forecastItem.getPrecipitation() * 20), widgetHeight / 6);
+                    float y = widgetHeight - Math.min((forecastItem.getPrecipitation() * 20), widgetHeight / 3);
                     canvas.drawLine(x, widgetHeight, x, y, precipPaint);
                 });
     }

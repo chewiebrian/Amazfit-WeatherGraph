@@ -3,8 +3,11 @@ package com.fgil55.weathergraph.weather;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Environment;
+import android.util.Log;
 
 import com.fgil55.weathergraph.util.Promise;
+import com.kieronquinn.library.amazfitcommunication.Transporter;
 import com.kieronquinn.library.amazfitcommunication.internet.LocalHTTPRequest;
 import com.kieronquinn.library.amazfitcommunication.internet.LocalHTTPResponse;
 import com.kieronquinn.library.amazfitcommunication.internet.LocalURLConnection;
@@ -21,11 +24,17 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -44,7 +53,7 @@ import okhttp3.Response;
 
 public class WeatherData {
 
-    private final static DateTimeFormatter zoneFormatter = DateTimeFormat.forPattern("ZZ").withLocale(new Locale("es"));
+    private static final DateTimeFormatter zoneFormatter = DateTimeFormat.forPattern("ZZ").withLocale(new Locale("es"));
 
     /*
     API sunrise
@@ -54,8 +63,7 @@ public class WeatherData {
     https://api.met.no/weatherapi/locationforecast/2.0/complete.json?lat=43.297682530610814&lon=-2.0037496089935307
      */
 
-    public static final WeatherData INSTANCE = new WeatherData();
-    public static final String LAST_BITMAP = "last_bitmap";
+    public static WeatherData INSTANCE = new WeatherData();
     private final AtomicBoolean refreshing = new AtomicBoolean(false);
     private final AtomicReference<LocalDateTime> lastRefreshed = new AtomicReference<>(LocalDateTime.parse("1970-01-01T00:00:00"));
 
@@ -66,6 +74,7 @@ public class WeatherData {
 
     private float lat = 43.323065f, lon = -1.9284507f;
     private String place;
+    private Duration refreshPeriod = Duration.standardMinutes(15);
 
     public List<SunraiseSunset> getSunraiseSunsets() {
         return sunraiseSunsets;
@@ -88,6 +97,10 @@ public class WeatherData {
     }
 
     final OkHttpClient client = new OkHttpClient();
+
+    public WeatherData() {
+        restoreLastState();
+    }
 
     private void removeExpiredData(LocalDateTime now) {
         if (!this.sunraiseSunsets.isEmpty()) {
@@ -118,22 +131,29 @@ public class WeatherData {
 
         if (refreshing.get()) needsRefresh = false;
         else if (isEmpty()) needsRefresh = true;
-        else if (sunraiseSunsets.size() < maxDays) needsRefresh = true;
+        else if (sunraiseSunsets.size() < (maxDays + 1)) needsRefresh = true;
         else if (forecasts.size() < maxDays * 24) needsRefresh = true;
-        else if (lastRefreshIntervalShorterThan(now, Duration.standardMinutes(30))) {
-            needsRefresh = false;
+        else {
+            if (lastRefreshIntervalShorterThan(now, refreshPeriod)) {
+                needsRefresh = false;
+            }
         }
 
         if (needsRefresh) {
             this.refreshing.set(true);
-            if (Build.BRAND.equalsIgnoreCase("huami")) {
+            if (isAmazfit()) {
                 refreshGeocodeAmazfit(context)
                         .then(ignore -> refreshSunriseSunsetAmazfit(context, now))
                         .then(ignore -> refreshForecastAmazfit(context, now))
                         .then(ignore -> {
                             this.refreshing.set(false);
                             this.lastRefreshed.set(now);
+                            saveLastState();
                             return this;
+                        })
+                        .error(error -> {
+                            Log.e("WeatherGraph", Objects.toString(error));
+                            refreshing.set(false);
                         });
             } else {
                 refreshGeocode()
@@ -142,12 +162,70 @@ public class WeatherData {
                         .then(ignore -> {
                             this.refreshing.set(false);
                             this.lastRefreshed.set(now);
+                            saveLastState();
                             return this;
+                        })
+                        .error(error -> {
+                            Log.e("WeatherGraph", Objects.toString(error));
+                            refreshing.set(false);
                         });
             }
         }
 
         return needsRefresh;
+    }
+
+    private boolean isAmazfit() {
+        return Build.BRAND.equalsIgnoreCase("huami");
+    }
+
+    private File getCacheFile() {
+        return new File(Environment.getExternalStorageDirectory(), "weatherdata");
+    }
+
+    private void saveLastState() {
+        try (FileOutputStream out = new FileOutputStream(getCacheFile());
+             ObjectOutputStream oos = new ObjectOutputStream(out)) {
+            oos.writeObject(this.sunraiseSunsets);
+            oos.writeObject(this.forecasts);
+            oos.writeFloat(this.lat);
+            oos.writeFloat(this.lon);
+            oos.writeUTF(this.place);
+            oos.writeFloat(this.minTemp);
+            oos.writeFloat(this.maxTemp);
+            oos.writeFloat(this.deltaTemp);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void restoreLastState() {
+        final File cacheFile = getCacheFile();
+        if (!cacheFile.exists()) return;
+
+        Log.d("WeatherGraph", "Reading cached data from " + cacheFile);
+        try (FileInputStream in = new FileInputStream(cacheFile);
+             ObjectInputStream ois = new ObjectInputStream(in)) {
+            this.sunraiseSunsets = (List<SunraiseSunset>) ois.readObject();
+            this.forecasts = (List<ForecastItem>) ois.readObject();
+
+            this.setLat(ois.readFloat());
+            this.setLon(ois.readFloat());
+            this.setPlace(ois.readUTF());
+
+            this.minTemp = ois.readFloat();
+            this.maxTemp = ois.readFloat();
+            this.deltaTemp = ois.readFloat();
+
+            this.refreshing.set(false);
+        } catch (Throwable e) {
+            Log.e("WeatherGraph", e.toString());
+        }
+    }
+
+    private boolean isAmazfitTransporterAvailable(Context context) {
+        Transporter transporter = Transporter.get(context, "com.kieronquinn.app.amazfitinternetcompanion");
+        return transporter.isAvailable();
     }
 
     private Promise execute(Request requesthttp, Consumer<String> postProcess) {
@@ -175,6 +253,8 @@ public class WeatherData {
     @NotNull
     private Promise executeAmazfit(Context context, LocalURLConnection conn, Consumer<String> post, final boolean isGzip) {
         final Promise p = new Promise();
+
+        conn.setTimeout(10000);
 
         new LocalHTTPRequest(context, conn, new LocalHTTPResponse() {
             @Override
@@ -413,6 +493,14 @@ public class WeatherData {
 
     public void setLon(float lon) {
         this.lon = lon;
+    }
+
+    public void setPlace(String place) {
+        this.place = place;
+    }
+
+    public boolean isRefreshing() {
+        return refreshing.get();
     }
 }
 

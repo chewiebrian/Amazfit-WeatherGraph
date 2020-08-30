@@ -7,9 +7,10 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class ForecastItem {
+public class ForecastItem implements Serializable {
 
     private final LocalDateTime time;
     private final float temp;

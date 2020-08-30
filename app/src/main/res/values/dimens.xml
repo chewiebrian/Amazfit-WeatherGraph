@@ -11,11 +11,11 @@
     <dimen name="malvarez_time_hour_top">145px</dimen>
     <dimen name="malvarez_time_minute_left">165px</dimen>
     <dimen name="malvarez_time_minute_top">250px</dimen>
-    <dimen name="malvarez_time_hour_left_slpt">80px</dimen>
-    <dimen name="malvarez_time_hour_top_slpt">192px</dimen>
-    <dimen name="malvarez_time_minute_left_slpt">168px</dimen>
-    <dimen name="malvarez_time_minute_top_slpt">192px</dimen>
-    <dimen name="malvarez_time_font_size">90px</dimen>
+    <dimen name="malvarez_time_hour_left_slpt">71px</dimen>
+    <dimen name="malvarez_time_hour_top_slpt">193px</dimen>
+    <dimen name="malvarez_time_minute_left_slpt">170px</dimen>
+    <dimen name="malvarez_time_minute_top_slpt">193px</dimen>
+    <dimen name="malvarez_time_font_size">100px</dimen>
 
     <dimen name="malvarez_date_left">160px</dimen>
     <dimen name="malvarez_date_top">290px</dimen>

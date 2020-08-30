@@ -1,12 +1,9 @@
 package com.fgil55.weathergraph;
 
-import android.content.Context;
 import android.content.Intent;
 
 import com.fgil55.weathergraph.widget.WeatherGraphWidget;
 import com.fgil55.weathergraph.widget.Widget;
-import com.huami.watch.watchface.AbstractSlptClock;
-import com.huami.watch.watchface.util.Util;
 import com.ingenic.iwds.slpt.view.core.SlptAbsoluteLayout;
 import com.ingenic.iwds.slpt.view.core.SlptLayout;
 import com.ingenic.iwds.slpt.view.core.SlptViewComponent;
@@ -58,12 +55,13 @@ public class WeatherGraphWatchFaceSlpt extends AbstractWatchFaceSlpt {
 
     @Override
     public boolean isClockPeriodSecond() {
-        Context context = this.getApplicationContext();
-        boolean needRefreshSecond = Util.needSlptRefreshSecond(context);
-        if (needRefreshSecond) {
-            this.setClockPeriodSecond(true);
-        }
-        return needRefreshSecond;
+        return false;
+//        Context context = this.getApplicationContext();
+//        boolean needRefreshSecond = Util.needSlptRefreshSecond(context);
+//        if (needRefreshSecond) {
+//            this.setClockPeriodSecond(true);
+//        }
+//        return needRefreshSecond;
     }
 
 }

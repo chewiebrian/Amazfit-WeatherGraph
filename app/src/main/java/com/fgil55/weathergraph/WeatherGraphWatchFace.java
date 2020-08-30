@@ -21,7 +21,7 @@ public class WeatherGraphWatchFace extends AbstractWatchFace {
     @Override
     public void onCreate() {
         instance = new WeakReference(this);
-
+//        notifyStatusBarPosition(8f);
         super.onCreate();
     }
 }

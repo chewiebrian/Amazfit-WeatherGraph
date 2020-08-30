@@ -8,7 +8,9 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class SunraiseSunset {
+import java.io.Serializable;
+
+public class SunraiseSunset implements Serializable {
   LocalDate date;
 
   LocalDateTime sunrise;

@@ -5,17 +5,15 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.LightingColorFilter;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.BatteryManager;
 import android.provider.Settings;
 import android.text.TextPaint;
-import android.util.Log;
 
 import com.fgil55.weathergraph.AbstractWatchFace;
 import com.fgil55.weathergraph.R;
@@ -25,26 +23,20 @@ import com.fgil55.weathergraph.data.DataType;
 import com.fgil55.weathergraph.data.HeartRate;
 import com.fgil55.weathergraph.data.MultipleWatchDataListener;
 import com.fgil55.weathergraph.data.Steps;
+import com.fgil55.weathergraph.data.Time;
 import com.fgil55.weathergraph.util.Utility;
 import com.fgil55.weathergraph.weather.WeatherData;
 import com.fgil55.weathergraph.resource.ResourceManager;
 import com.fgil55.weathergraph.weather.WeatherRenderer;
 import com.huami.watch.watchface.util.Util;
-import com.ingenic.iwds.slpt.view.core.SlptLayout;
 import com.ingenic.iwds.slpt.view.core.SlptLinearLayout;
 import com.ingenic.iwds.slpt.view.core.SlptPictureView;
 import com.ingenic.iwds.slpt.view.core.SlptViewComponent;
-import com.ingenic.iwds.slpt.view.digital.SlptDayHView;
-import com.ingenic.iwds.slpt.view.digital.SlptDayLView;
 import com.ingenic.iwds.slpt.view.digital.SlptHourHView;
 import com.ingenic.iwds.slpt.view.digital.SlptHourLView;
 import com.ingenic.iwds.slpt.view.digital.SlptMinuteHView;
 import com.ingenic.iwds.slpt.view.digital.SlptMinuteLView;
-import com.ingenic.iwds.slpt.view.digital.SlptMonthHView;
-import com.ingenic.iwds.slpt.view.digital.SlptMonthLView;
 import com.ingenic.iwds.slpt.view.digital.SlptTimeView;
-import com.ingenic.iwds.slpt.view.digital.SlptWeekView;
-import com.ingenic.iwds.slpt.view.utils.SimpleFile;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -53,12 +45,10 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static android.content.ContentValues.TAG;
 import static android.content.Context.BATTERY_SERVICE;
 
 public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWatchDataListener {
@@ -68,15 +58,17 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     private Context context;
     private Paint clear = new Paint();
     final TextPaint timePaint = new TextPaint();
+    final TextPaint secondsPaint = new TextPaint();
     private Bitmap heartRateBmp;
     private Bitmap batteryBmp;
     private Bitmap phoneBatteryBmp;
     private Bitmap notificationsBmp;
 
-    private Steps steps = new Steps(1, 1000);
+    private Steps steps = new Steps(1000, 1000);
     private HeartRate heartRate = new HeartRate(60);
     private Battery batteryData = new Battery(50, 100);
     private CustomData customData = new CustomData("{\"notifications\":1,\"phoneBattery\":50}");
+    private int lastUpdatedHour = 0;
 
     public void setContext(Context context) {
         this.context = context;
@@ -89,10 +81,15 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         timePaint.setAntiAlias(true);
         timePaint.setColor(Color.WHITE);
-//        timePaint.setTypeface(Typeface.DEFAULT_BOLD);
         timePaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
         timePaint.setTextAlign(Paint.Align.CENTER);
-        timePaint.setTextSize(90.0f);
+        timePaint.setTextSize(100.0f);
+
+        secondsPaint.setAntiAlias(true);
+        secondsPaint.setColor(Color.WHITE);
+        secondsPaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
+        secondsPaint.setTextAlign(Paint.Align.CENTER);
+        secondsPaint.setTextSize(25.0f);
     }
 
     @Override
@@ -115,10 +112,10 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     public void onDrawDigital(Canvas canvas, float width, float height, float centerX, float centerY, int seconds, int minutes, int hours, int year, int month, int day, int week, int ampm) {
         clear(canvas);
 
-        updateLatLon();
+        updateLatLon(this.service);
 
         final LocalDateTime now = new LocalDateTime(year, month, day, hours, minutes, seconds);
-        boolean needsRefresh = WeatherData.INSTANCE.refresh(context, LocalDateTime.now());
+        WeatherData.INSTANCE.refresh(context, LocalDateTime.now());
 
         if (WeatherData.INSTANCE.isEmpty()) {
             drawNoData(canvas);
@@ -133,10 +130,10 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         drawPhoneData(canvas);
     }
 
-    private void updateLatLon() {
+    private void updateLatLon(Service service) {
         try {
             // Get ALL data from system
-            final String weatherInfoJson = Settings.System.getString(this.service.getApplicationContext().getContentResolver(), "WeatherInfo");
+            final String weatherInfoJson = Settings.System.getString(service.getApplicationContext().getContentResolver(), "WeatherInfo");
 
             // Extract data from JSON
             JSONObject weather_data = new JSONObject(weatherInfoJson);
@@ -200,12 +197,19 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     }
 
     private void drawClock(Canvas canvas, LocalDateTime now) {
-        final String timeString = now.getSecondOfMinute() % 2 > 0 ? now.toString("H:mm") : now.toString("H mm");
+        //final String timeString = now.getSecondOfMinute() % 2 > 0 ? now.toString("H:mm") : now.toString("H mm");
+        final String timeString = now.toString("H:mm");
+        final String secondsString = now.toString("ss");
+
+        Rect timeBounds = new Rect();
+        timePaint.getTextBounds(timeString, 0, timeString.length(), timeBounds);
+
         drawClockStr(canvas, timeString);
+        canvas.drawText(secondsString, (canvas.getWidth() / 2) +  timeBounds.centerX() + 10, canvas.getHeight() - 100 + 16,secondsPaint );
     }
 
     private void drawClockStr(Canvas canvas, String str) {
-        canvas.drawText(str, canvas.getWidth() / 2, canvas.getHeight() - 40, timePaint);
+        canvas.drawText(str, canvas.getWidth() / 2, canvas.getHeight() - 32, timePaint);
     }
 
     private void drawStepsHearthRate(Canvas canvas) {
@@ -217,11 +221,14 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         stepsHearthRatePaint.setTextSize(20.0f);
 
         String message = String.format("%s / %s", heartRate.getHeartRate(), steps.getSteps());
-        canvas.drawText(message, canvas.getWidth() / 2, canvas.getHeight() - 18, stepsHearthRatePaint);
+        canvas.drawText(message, canvas.getWidth() / 2 + 12, canvas.getHeight() - 8, stepsHearthRatePaint);
         Paint paint = new Paint();
         paint.setAntiAlias(true);
         paint.setColorFilter(new LightingColorFilter(Color.RED, 1));
-        canvas.drawBitmap(heartRateBmp, (canvas.getWidth() / 2) - stepsHearthRatePaint.measureText(message), canvas.getHeight() - 36, paint);
+
+        Rect messageBounds = new Rect();
+        stepsHearthRatePaint.getTextBounds(message, 0, message.length(), messageBounds);
+        canvas.drawBitmap(heartRateBmp, (canvas.getWidth() / 2) - (messageBounds.width() / 2) - 12, canvas.getHeight() - 24, paint);
     }
 
     private void drawBattery(Canvas canvas) {
@@ -231,10 +238,11 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         batteryPaint.setTypeface(Typeface.DEFAULT_BOLD);
         batteryPaint.setTextAlign(Paint.Align.CENTER);
         batteryPaint.setTextSize(16.0f);
+        batteryPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
 
         String text = this.batteryData.getLevel() * 100 / this.batteryData.getScale() + "%";
-        canvas.drawText(text, canvas.getWidth() / 6, canvas.getHeight() - 100, batteryPaint);
-        canvas.drawBitmap(batteryBmp, (canvas.getWidth() / 6) - batteryPaint.measureText(text) - 4, canvas.getHeight() - 116, new Paint());
+        canvas.drawText(text, canvas.getWidth() / 2 - 20, 27, batteryPaint);
+        canvas.drawBitmap(batteryBmp, canvas.getWidth() / 2 - 32 - 20, 11, new Paint());
     }
 
     private void drawPhoneData(Canvas canvas) {
@@ -244,25 +252,26 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         phoneDataPaint.setTypeface(Typeface.DEFAULT_BOLD);
         phoneDataPaint.setTextAlign(Paint.Align.CENTER);
         phoneDataPaint.setTextSize(16.0f);
+        phoneDataPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
 
         int x = ((5 * canvas.getWidth()) / 6) + 15;
         if (StringUtils.isNotBlank(customData.phoneBattery)) {
             String text = customData.phoneBattery + "%";
-            canvas.drawText(text, x, canvas.getHeight() - 100, phoneDataPaint);
-            canvas.drawBitmap(phoneBatteryBmp, x - 32, canvas.getHeight() - 116, new Paint());
+            canvas.drawText(text, canvas.getWidth() / 2 + 32, 27, phoneDataPaint);
+            canvas.drawBitmap(phoneBatteryBmp, canvas.getWidth() / 2 - 32 + 30, 11, new Paint());
         }
 
         if (StringUtils.isNotBlank(customData.notifications) && !StringUtils.equalsIgnoreCase(customData.notifications, "0")) {
             String text = customData.notifications;
-            canvas.drawText(text, x, canvas.getHeight() - 80, phoneDataPaint);
-            canvas.drawBitmap(notificationsBmp, x - 32, canvas.getHeight() - 96, new Paint());
+            canvas.drawText(text, canvas.getWidth() / 6, canvas.getHeight() - 100 + 32, phoneDataPaint);
+            canvas.drawBitmap(notificationsBmp, (canvas.getWidth() / 6) - phoneDataPaint.measureText(text)-2, canvas.getHeight() - 102, new Paint());
         }
 
     }
 
     @Override
     public List<DataType> getDataTypes() {
-        return Arrays.asList(DataType.BATTERY, DataType.HEART_RATE, DataType.STEPS, DataType.CUSTOM);
+        return Arrays.asList(DataType.BATTERY, DataType.HEART_RATE, DataType.STEPS, DataType.CUSTOM, DataType.TIME, DataType.WEATHER);
     }
 
     @Override
@@ -284,6 +293,15 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 this.customData = (CustomData) value;
                 refresh = true;
                 break;
+            case WEATHER:
+                com.fgil55.weathergraph.data.WeatherData wd = (com.fgil55.weathergraph.data.WeatherData) value;
+                refresh = true;
+                break;
+            case TIME:
+                Time time = (Time) value;
+                refresh = this.lastUpdatedHour != time.getHours();
+                this.lastUpdatedHour = time.getHours();
+                break;
             default:
                 return;
         }
@@ -294,6 +312,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     @Override
     public List<SlptViewComponent> buildSlptViewComponent(Service service) {
         setContext(service.getApplicationContext());
+        updateLatLon(service);
         updateBattery(service);
         updateCustomData(service);
 
