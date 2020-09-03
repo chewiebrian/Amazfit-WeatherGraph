@@ -17,13 +17,19 @@ public class ForecastItem implements Serializable {
     private final float cloudArea;
     private final int cloudGroup;
     private final float precipitation;
+    private final float humidity;
+    private final int windDirection;
+    private final float windSpeed;
 
-    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation) {
+    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation, float humidity, int windDirection, float windSpeed, float uvIndex) {
         this.time = time;
         this.temp = temp;
         this.cloudArea = cloudArea;
         this.cloudGroup = cloudGroup;
         this.precipitation = precipitation;
+        this.humidity = humidity;
+        this.windDirection = windDirection;
+        this.windSpeed = windSpeed;
     }
 
     public ForecastItem(JSONObject item, AtomicInteger cloudGroupCounter) throws JSONException {
@@ -31,6 +37,9 @@ public class ForecastItem implements Serializable {
         final JSONObject details = data.getJSONObject("instant").getJSONObject("details");
         this.time = ISODateTimeFormat.dateTimeNoMillis().parseDateTime(item.getString("time")).toLocalDateTime();
         this.temp = (float) details.getDouble("air_temperature");
+        this.windDirection = details.getInt("wind_from_direction");
+        this.windSpeed = (float)details.getDouble("wind_speed");
+        this.humidity = (float) details.getDouble("relative_humidity");
         this.cloudArea = (float) details.getDouble("cloud_area_fraction");
         this.cloudGroup = this.cloudArea > 0f ? cloudGroupCounter.get() : cloudGroupCounter.incrementAndGet();
         if (data.has("next_1_hours")) {
@@ -61,6 +70,18 @@ public class ForecastItem implements Serializable {
         return precipitation;
     }
 
+    public float getHumidity() {
+        return humidity;
+    }
+
+    public int getWindDirection() {
+        return windDirection;
+    }
+
+    public float getWindSpeed() {
+        return windSpeed;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -75,6 +96,7 @@ public class ForecastItem implements Serializable {
                 .append(cloudGroup, that.cloudGroup)
                 .append(precipitation, that.precipitation)
                 .append(time, that.time)
+                .append(humidity, that.humidity)
                 .isEquals();
     }
 
@@ -83,6 +105,7 @@ public class ForecastItem implements Serializable {
         return new HashCodeBuilder(17, 37)
                 .append(time)
                 .append(temp)
+                .append(humidity)
                 .append(cloudArea)
                 .append(cloudGroup)
                 .append(precipitation)

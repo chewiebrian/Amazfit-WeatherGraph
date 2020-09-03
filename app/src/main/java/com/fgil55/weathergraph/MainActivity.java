@@ -1,16 +1,8 @@
 package com.fgil55.weathergraph;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.TextView;
-
-import com.fgil55.weathergraph.weather.WeatherData;
-
-import org.joda.time.LocalDateTime;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;

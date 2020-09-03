@@ -12,10 +12,10 @@ import android.graphics.Typeface;
 import android.text.TextPaint;
 
 import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
-import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -28,7 +28,7 @@ public class WeatherRenderer {
 
     final int widgetWidth = 320;
     final int widgetHeight = 300 / 2;
-    final int maxHours = WeatherData.INSTANCE.getMaxDays() * 24;
+    final int maxHours = WeatherService.INSTANCE.getCurrentData().getMaxDays() * 24;
     final int pixelsPerHour = widgetWidth / maxHours;
     final int paddingX = (widgetWidth - (pixelsPerHour * maxHours)) / 2;
 
@@ -53,6 +53,7 @@ public class WeatherRenderer {
     final Paint mPaintDusk = new Paint();
     final Paint tempPaint = new Paint();
     final Paint tempPaintLine = new Paint();
+    final Paint humidityPaintLine = new Paint();
     final Paint cloudsPaint = new Paint();
     final Paint cloudsLinePaint = new Paint();
     final TextPaint minMaxTempPaint = new TextPaint();
@@ -63,12 +64,18 @@ public class WeatherRenderer {
     final Paint strongPrecipLinePaint = new Paint();
 
 
+    private static long getMillis(LocalDateTime date) {
+        return date.toDateTime(DateTimeZone.UTC).getMillis();
+    }
+
     int dateToX(LocalDateTime date, LocalDateTime now) {
-        LocalDateTime max = now.plusDays(WeatherData.INSTANCE.getMaxDays());
+        LocalDateTime max = now.plusDays(WeatherService.INSTANCE.getCurrentData().getMaxDays());
         if (date.isBefore(now)) return paddingX;
         if (date.isAfter(max)) return widgetWidth - paddingX;
 
-        return paddingX + (Period.fieldDifference(now, date).toDurationFrom(now.toDateTime()).toStandardHours().getHours() * pixelsPerHour);
+        final int hoursDif = (int) ((getMillis(date) - getMillis(now)) / 3600000);
+
+        return paddingX + (hoursDif * pixelsPerHour);
     }
 
 
@@ -81,6 +88,10 @@ public class WeatherRenderer {
     float cloudToY(float cloudArea, boolean upper) {
         double v = 14 * (cloudArea / 100.0);
         return (float) (upper ? cloudY - v : cloudY + v);
+    }
+
+    int humidityToY(float humidity) {
+        return tempMinY - (int) ((humidity/100.0) * tempDeltaY);
     }
 
     boolean isOutOfScreen(LocalDateTime date, LocalDateTime now, WeatherData weatherData) {
@@ -117,6 +128,13 @@ public class WeatherRenderer {
         tempPaintLine.setStrokeWidth(4.0f);
         tempPaintLine.setPathEffect(new CornerPathEffect(10f));
         //tempPaintLine.setShadowLayer(2, 1, 1, Color.parseColor("#ff5f00"));
+
+        humidityPaintLine.setColor(Color.parseColor("#0088ff"));
+        humidityPaintLine.setStyle(Paint.Style.STROKE);
+        humidityPaintLine.setAntiAlias(true);
+        humidityPaintLine.setStrokeWidth(2.0f);
+//        humidityPaintLine.setPathEffect(new CornerPathEffect(10f));
+        humidityPaintLine.setPathEffect(new DashPathEffect(new float[]{4, 4}, 0));
 
         cloudsPaint.setColor(Color.parseColor("#aaaaaa"));
         cloudsLinePaint.setColor(Color.parseColor("#ffffff"));
@@ -216,8 +234,27 @@ public class WeatherRenderer {
         drawClouds(canvas, weatherData, now);
         drawTemperature(canvas, weatherData, now);
         drawPrecipitation(canvas, weatherData, now);
+        drawHumidity(canvas, weatherData, now);
         drawPlace(canvas, weatherData);
         drawMinMaxTemp(canvas, weatherData, now);
+    }
+
+    private void drawHumidity(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+        if (weatherData.getForecasts().isEmpty()) return;
+
+        final Path humidityLine = new Path();
+
+        humidityLine.moveTo(paddingX, humidityToY(weatherData.getForecasts().get(0).getHumidity()));
+
+        weatherData.getForecasts().stream()
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
+                .forEach(forecastItem -> {
+                    final int x = dateToX(forecastItem.getTime(), now);
+                    final int y = humidityToY(forecastItem.getHumidity());
+                    humidityLine.lineTo(x, y);
+                });
+
+        canvas.drawPath(humidityLine, humidityPaintLine);
     }
 
     private void drawMinMaxTemp(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
@@ -252,7 +289,8 @@ public class WeatherRenderer {
     }
 
     private void drawPlace(Canvas canvas, WeatherData weatherData) {
-        canvas.drawText(weatherData.isRefreshing() ? "Updating" : weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+//        canvas.drawText(WeatherService.INSTANCE.isRefreshing() ? "Updating" : weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+        canvas.drawText(weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
     }
 
     private String getDayName(LocalDateTime date) {

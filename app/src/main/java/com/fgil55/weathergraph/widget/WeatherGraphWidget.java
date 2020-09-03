@@ -26,6 +26,7 @@ import com.fgil55.weathergraph.data.Steps;
 import com.fgil55.weathergraph.data.Time;
 import com.fgil55.weathergraph.util.Utility;
 import com.fgil55.weathergraph.weather.WeatherData;
+import com.fgil55.weathergraph.weather.WeatherService;
 import com.fgil55.weathergraph.resource.ResourceManager;
 import com.fgil55.weathergraph.weather.WeatherRenderer;
 import com.huami.watch.watchface.util.Util;
@@ -115,12 +116,14 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         updateLatLon(this.service);
 
         final LocalDateTime now = new LocalDateTime(year, month, day, hours, minutes, seconds);
-        WeatherData.INSTANCE.refresh(context, LocalDateTime.now());
+        WeatherService.INSTANCE.refresh(context, LocalDateTime.now());
 
-        if (WeatherData.INSTANCE.isEmpty()) {
+        WeatherData currentData = WeatherService.INSTANCE.getCurrentData();
+
+        if (currentData.isEmpty()) {
             drawNoData(canvas);
         } else {
-            renderer.render(canvas, WeatherData.INSTANCE, now);
+            renderer.render(canvas, currentData, now);
         }
 
         drawDate(canvas, now);
@@ -141,8 +144,8 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 float lat = (float) weather_data.getDouble("lat");
                 float lon = (float) weather_data.getDouble("lon");
 
-                WeatherData.INSTANCE.setLat(lat);
-                WeatherData.INSTANCE.setLon(lon);
+                WeatherService.INSTANCE.getCurrentData().setLat(lat);
+                WeatherService.INSTANCE.getCurrentData().setLon(lon);
             }
         } catch (Throwable ignore) {
         }
@@ -355,7 +358,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();) {
             Canvas canvas = new Canvas(bitmap);
-            renderer.render(canvas, WeatherData.INSTANCE, now);
+            renderer.render(canvas, WeatherService.INSTANCE.getCurrentData(), now);
             drawDate(canvas, now);
             drawBattery(canvas);
             drawPhoneData(canvas);
