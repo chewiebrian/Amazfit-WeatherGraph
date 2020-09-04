@@ -22,6 +22,7 @@ import org.joda.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class WeatherRenderer {
@@ -54,6 +55,7 @@ public class WeatherRenderer {
     final Paint tempPaint = new Paint();
     final Paint tempPaintLine = new Paint();
     final Paint humidityPaintLine = new Paint();
+    final Paint windPaintLine = new Paint();
     final Paint cloudsPaint = new Paint();
     final Paint cloudsLinePaint = new Paint();
     final TextPaint minMaxTempPaint = new TextPaint();
@@ -62,6 +64,15 @@ public class WeatherRenderer {
 
     final Paint weakPrecipLinePaint = new Paint();
     final Paint strongPrecipLinePaint = new Paint();
+
+    final Paint conditionSunPaint;
+    final Paint conditionSunPaintEven;
+    final Paint conditionSunPartlyPaint;
+    final Paint conditionSunPartlyPaintEven;
+    final Paint conditionLightRainPaint;
+    final Paint conditionLightRainPaintEven;
+    final Paint conditionHeavyRainPaint;
+    final Paint conditionHeavyRainPaintEven;
 
 
     private static long getMillis(LocalDateTime date) {
@@ -92,6 +103,10 @@ public class WeatherRenderer {
 
     int humidityToY(float humidity) {
         return tempMinY - (int) ((humidity/100.0) * tempDeltaY);
+    }
+
+    int windToY(float wind, WeatherData weatherData) {
+        return tempMinY - (int) ((wind / 100.0) * tempDeltaY);
     }
 
     boolean isOutOfScreen(LocalDateTime date, LocalDateTime now, WeatherData weatherData) {
@@ -136,6 +151,13 @@ public class WeatherRenderer {
 //        humidityPaintLine.setPathEffect(new CornerPathEffect(10f));
         humidityPaintLine.setPathEffect(new DashPathEffect(new float[]{4, 4}, 0));
 
+        windPaintLine.setColor(Color.RED);
+        windPaintLine.setStyle(Paint.Style.STROKE);
+        windPaintLine.setAntiAlias(true);
+        windPaintLine.setStrokeWidth(2.0f);
+//        humidityPaintLine.setPathEffect(new CornerPathEffect(10f));
+        windPaintLine.setPathEffect(new DashPathEffect(new float[]{4, 4}, 0));
+
         cloudsPaint.setColor(Color.parseColor("#aaaaaa"));
         cloudsLinePaint.setColor(Color.parseColor("#ffffff"));
         cloudsLinePaint.setStyle(Paint.Style.STROKE);
@@ -166,6 +188,41 @@ public class WeatherRenderer {
         currentConditionsPaint.setTextSize(20.0f);
         currentConditionsPaint.setTextAlign(Paint.Align.CENTER);
         currentConditionsPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
+
+        conditionSunPaint = new Paint();
+        conditionSunPaint.setAntiAlias(true);
+        conditionSunPaint.setAlpha(50);
+        conditionSunPaint.setColor(Color.YELLOW);
+//        conditionSunPaint.setStyle(Paint.Style.FILL);
+        conditionSunPaint.setStrokeWidth(pixelsPerHour);
+        conditionSunPaint.setPathEffect(new DashPathEffect(new float[]{2, 2}, 0));
+
+        conditionSunPaintEven = new Paint(conditionSunPaint);
+        conditionSunPaintEven.setPathEffect(new DashPathEffect(new float[]{2, 2}, 2));
+
+        conditionSunPartlyPaint = new Paint(conditionSunPaint);
+        conditionSunPartlyPaint.setAlpha(25);
+
+        conditionSunPartlyPaintEven = new Paint(conditionSunPaintEven);
+        conditionSunPartlyPaintEven.setAlpha(25);
+
+        conditionLightRainPaint = new Paint();
+        conditionLightRainPaint.setAntiAlias(true);
+        conditionLightRainPaint.setAlpha(40);
+        conditionLightRainPaint.setColor(Color.BLUE);
+//        conditionSunPaint.setStyle(Paint.Style.FILL);
+//        conditionLightRainPaint.setStrokeWidth(pixelsPerHour/2f);
+        conditionLightRainPaint.setPathEffect(new DashPathEffect(new float[]{2, 2}, 0));
+
+        conditionLightRainPaintEven = new Paint(conditionLightRainPaint);
+        conditionLightRainPaintEven.setPathEffect(new DashPathEffect(new float[]{2, 2}, 2));
+
+        conditionHeavyRainPaint = new Paint(conditionLightRainPaint);
+        conditionHeavyRainPaint.setStrokeWidth(pixelsPerHour/2f);
+
+        conditionHeavyRainPaintEven = new Paint(conditionHeavyRainPaint);
+        conditionHeavyRainPaintEven.setPathEffect(new DashPathEffect(new float[]{2, 2}, 2));
+
     }
 
     public void render(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
@@ -231,12 +288,45 @@ public class WeatherRenderer {
         canvas.drawRect(0, 0, paddingX, widgetHeight, clear);
         canvas.drawRect(widgetWidth - paddingX, 0, widgetWidth, widgetHeight, clear);
 
+        drawConditions(canvas,weatherData,now);
         drawClouds(canvas, weatherData, now);
         drawTemperature(canvas, weatherData, now);
         drawPrecipitation(canvas, weatherData, now);
         drawHumidity(canvas, weatherData, now);
+        drawWind(canvas, weatherData, now);
         drawPlace(canvas, weatherData);
         drawMinMaxTemp(canvas, weatherData, now);
+    }
+
+    private Paint getPaintForCondition(ForecastItem.Condition condition, boolean isEven) {
+        switch (condition) {
+//            case SUN:
+//                return isEven ? conditionSunPaintEven : conditionSunPaint;
+//            case SUN_PARTLY:
+//                return isEven ? conditionSunPartlyPaintEven : conditionSunPartlyPaint;
+            case LIGHT_RAIN:
+                return isEven ? conditionLightRainPaintEven : conditionLightRainPaint;
+            case HEAVY_RAIN:
+                return isEven  ? conditionHeavyRainPaintEven : conditionHeavyRainPaint;
+            default:
+                return null;
+        }
+    }
+
+    private void drawConditions(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+        if (weatherData.getForecasts().isEmpty()) return;
+
+        AtomicBoolean even = new AtomicBoolean();
+
+        weatherData.getForecasts().stream()
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
+                .filter(forecastItem -> !forecastItem.getCondition().equals(ForecastItem.Condition.UNKNOWN))
+                .forEach(forecastItem -> {
+                    final int x = dateToX(forecastItem.getTime(), now);
+
+                    Paint paintForCondition = getPaintForCondition(forecastItem.getCondition(), even.getAndSet(!even.get()));
+                    if (paintForCondition != null) canvas.drawLine(x, cloudY, x, widgetHeight, paintForCondition);
+                });
     }
 
     private void drawHumidity(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
@@ -255,6 +345,24 @@ public class WeatherRenderer {
                 });
 
         canvas.drawPath(humidityLine, humidityPaintLine);
+    }
+
+    private void drawWind(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+        if (weatherData.getForecasts().isEmpty()) return;
+
+        final Path windLine = new Path();
+
+        windLine.moveTo(paddingX, windToY(weatherData.getForecasts().get(0).getWindSpeed(), weatherData));
+
+        weatherData.getForecasts().stream()
+                .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
+                .forEach(forecastItem -> {
+                    final int x = dateToX(forecastItem.getTime(), now);
+                    final int y = windToY(forecastItem.getWindSpeed(), weatherData);
+                    windLine.lineTo(x, y);
+                });
+
+        canvas.drawPath(windLine, windPaintLine);
     }
 
     private void drawMinMaxTemp(Canvas canvas, WeatherData weatherData, LocalDateTime now) {

@@ -12,7 +12,9 @@ public class WeatherData implements Serializable {
     private List<SunraiseSunset> sunraiseSunsets = new ArrayList<>();
     private List<ForecastItem> forecasts = new ArrayList<>();
     private float minTemp = 0, maxTemp = 0, deltaTemp = 0;
+    private float maxWind = 0;
     private float lat = 43.323065f, lon = -1.9284507f;   //Pasaia
+//    private float lat = 63.4305f , lon = 10.3951f;   //Trondheim
     private String place;
     private int maxDays = 3;
 
@@ -54,6 +56,14 @@ public class WeatherData implements Serializable {
 
     public void setDeltaTemp(float deltaTemp) {
         this.deltaTemp = deltaTemp;
+    }
+
+    public float getMaxWind() {
+        return maxWind;
+    }
+
+    public void setMaxWind(float maxWind) {
+        this.maxWind = maxWind;
     }
 
     public float getLat() {

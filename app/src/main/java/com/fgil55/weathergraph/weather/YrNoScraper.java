@@ -261,13 +261,14 @@ https://api.met.no/weatherapi/locationforecast/2.0/complete.json?lat=43.29768253
 
     private BiConsumer<WeatherData, String> parseForecast(LocalDateTime now) {
         return (WeatherData currentData, String body) -> {
-            float minTemp, maxTemp;
+            float minTemp, maxTemp, maxWind;
             try {
                 JSONObject object = new JSONObject(body);
 
                 currentData.getForecasts().clear();
                 minTemp = Integer.MAX_VALUE;
                 maxTemp = Integer.MIN_VALUE;
+                maxWind = Integer.MIN_VALUE;
 
                 JSONArray timeseries = object.getJSONObject("properties").getJSONArray("timeseries");
                 AtomicInteger cloudGroup = new AtomicInteger(1);
@@ -281,6 +282,7 @@ https://api.met.no/weatherapi/locationforecast/2.0/complete.json?lat=43.29768253
 //                if (forecast.getTime().isBefore(now.plusDays(maxDays))) {
                         if (forecast.getTemp() < minTemp) minTemp = forecast.getTemp();
                         if (forecast.getTemp() > maxTemp) maxTemp = forecast.getTemp();
+                        if (forecast.getWindSpeed() > maxWind) maxWind = forecast.getWindSpeed();
 //                }
                     }
                 }
@@ -288,6 +290,7 @@ https://api.met.no/weatherapi/locationforecast/2.0/complete.json?lat=43.29768253
                 currentData.setMinTemp(minTemp);
                 currentData.setMaxTemp(maxTemp);
                 currentData.setDeltaTemp(maxTemp - minTemp);
+                currentData.setMaxWind(maxWind);
             } catch (JSONException e) {
                 throw new RuntimeException(e);
             }

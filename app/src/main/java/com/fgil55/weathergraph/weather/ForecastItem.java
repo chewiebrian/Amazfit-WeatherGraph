@@ -12,6 +12,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ForecastItem implements Serializable {
 
+    public enum Condition {
+        SUN,
+        SUN_PARTLY,
+        LIGHT_RAIN,
+        HEAVY_RAIN,
+        SNOW,
+        UNKNOWN
+    }
+
     private final LocalDateTime time;
     private final float temp;
     private final float cloudArea;
@@ -20,8 +29,9 @@ public class ForecastItem implements Serializable {
     private final float humidity;
     private final int windDirection;
     private final float windSpeed;
+    private final Condition condition;
 
-    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation, float humidity, int windDirection, float windSpeed, float uvIndex) {
+    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation, float humidity, int windDirection, float windSpeed, float uvIndex, Condition condition) {
         this.time = time;
         this.temp = temp;
         this.cloudArea = cloudArea;
@@ -30,6 +40,7 @@ public class ForecastItem implements Serializable {
         this.humidity = humidity;
         this.windDirection = windDirection;
         this.windSpeed = windSpeed;
+        this.condition = condition;
     }
 
     public ForecastItem(JSONObject item, AtomicInteger cloudGroupCounter) throws JSONException {
@@ -38,15 +49,35 @@ public class ForecastItem implements Serializable {
         this.time = ISODateTimeFormat.dateTimeNoMillis().parseDateTime(item.getString("time")).toLocalDateTime();
         this.temp = (float) details.getDouble("air_temperature");
         this.windDirection = details.getInt("wind_from_direction");
-        this.windSpeed = (float)details.getDouble("wind_speed");
+        this.windSpeed = (float)details.getDouble("wind_speed") * 3.6f;  // m/s to km/h
         this.humidity = (float) details.getDouble("relative_humidity");
         this.cloudArea = (float) details.getDouble("cloud_area_fraction");
         this.cloudGroup = this.cloudArea > 0f ? cloudGroupCounter.get() : cloudGroupCounter.incrementAndGet();
         if (data.has("next_1_hours")) {
+            final JSONObject summaryNextHour = data.getJSONObject("next_1_hours").getJSONObject("summary");
             final JSONObject detailsNextHour = data.getJSONObject("next_1_hours").getJSONObject("details");
             this.precipitation = (float) detailsNextHour.getDouble("precipitation_amount");
+
+            final String symbolCode = summaryNextHour.getString("symbol_code").toLowerCase();
+
+            if (symbolCode.contains("clearsky") && symbolCode.endsWith("day")) {
+                this.condition = Condition.SUN;
+            } else if (symbolCode.contains("fair")) {
+                this.condition = Condition.SUN_PARTLY;
+            } else if (symbolCode.contains("rain")) {
+                if (symbolCode.contains("light")) {
+                    this.condition = Condition.LIGHT_RAIN;
+                } else {
+                    this.condition=Condition.HEAVY_RAIN;
+                }
+            } else if (symbolCode.contains("snow")) {
+                this.condition= Condition.SNOW;
+            } else {
+                this.condition=Condition.UNKNOWN;
+            }
         } else {
             this.precipitation = 0.0f;
+            this.condition = Condition.UNKNOWN;
         }
     }
 
@@ -80,6 +111,10 @@ public class ForecastItem implements Serializable {
 
     public float getWindSpeed() {
         return windSpeed;
+    }
+
+    public Condition getCondition() {
+        return condition;
     }
 
     @Override
