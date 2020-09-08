@@ -11,8 +11,9 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.text.TextPaint;
 
+import com.fgil55.weathergraph.util.DateUtils;
+
 import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
@@ -75,18 +76,12 @@ public class WeatherRenderer {
     final Paint conditionHeavyRainPaintEven;
 
 
-    private static long getMillis(LocalDateTime date) {
-        return date.toDateTime(DateTimeZone.UTC).getMillis();
-    }
-
     int dateToX(LocalDateTime date, LocalDateTime now) {
         LocalDateTime max = now.plusDays(WeatherService.INSTANCE.getCurrentData().getMaxDays());
         if (date.isBefore(now)) return paddingX;
         if (date.isAfter(max)) return widgetWidth - paddingX;
 
-        final int hoursDif = (int) ((getMillis(date) - getMillis(now)) / 3600000);
-
-        return paddingX + (hoursDif * pixelsPerHour);
+        return paddingX + (DateUtils.getHoursOfDifference(date, now) * pixelsPerHour);
     }
 
 
@@ -245,7 +240,7 @@ public class WeatherRenderer {
             int quarterdayX = dateToX(quarterday, now);
             int threequarterdayX = dateToX(threequarterday, now);
 
-            int gradientSize = 10;
+            int gradientSize = pixelsPerHour * 2;
 
             LinearGradient shaderDawn;
             LinearGradient shaderDusk;

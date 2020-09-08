@@ -1,5 +1,8 @@
 package com.fgil55.weathergraph.weather;
 
+import com.fgil55.weathergraph.util.DateUtils;
+
+import org.joda.time.DateTimeUtils;
 import org.joda.time.LocalDateTime;
 
 import java.io.Serializable;
@@ -14,7 +17,7 @@ public class WeatherData implements Serializable {
     private float minTemp = 0, maxTemp = 0, deltaTemp = 0;
     private float maxWind = 0;
     private float lat = 43.323065f, lon = -1.9284507f;   //Pasaia
-//    private float lat = 63.4305f , lon = 10.3951f;   //Trondheim
+    //    private float lat = 63.4305f , lon = 10.3951f;   //Trondheim
     private String place;
     private int maxDays = 3;
 
@@ -99,7 +102,11 @@ public class WeatherData implements Serializable {
     }
 
     public boolean needsRefresh() {
-        return isEmpty() || sunraiseSunsets.size() < (maxDays + 2) || forecasts.size() < maxDays * 24;
+        if (isEmpty() || sunraiseSunsets.size() < (maxDays + 2)) return true;
+        final LocalDateTime firstForecast = forecasts.get(0).getTime();
+        final LocalDateTime lastForecast = forecasts.get(forecasts.size() - 1).getTime();
+
+        return DateUtils.getDaysOfDifference(lastForecast, firstForecast) < maxDays;
     }
 
     void removeExpiredData(LocalDateTime now) {
