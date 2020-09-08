@@ -20,6 +20,8 @@ import org.joda.time.LocalTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -28,17 +30,17 @@ import java.util.stream.Collectors;
 
 public class WeatherRenderer {
 
-    final int widgetWidth = 320;
-    final int widgetHeight = 300 / 2;
-    final int maxHours = WeatherService.INSTANCE.getCurrentData().getMaxDays() * 24;
-    final int pixelsPerHour = widgetWidth / maxHours;
-    final int paddingX = (widgetWidth - (pixelsPerHour * maxHours)) / 2;
+    final float widgetWidth = 320f;
+    final float widgetHeight = 150f; //300 / 2
+    final float maxHours = WeatherService.INSTANCE.getCurrentData().getMaxDays() * 24;
+    final float pixelsPerHour = BigDecimal.valueOf((widgetWidth / maxHours) - 0.2).setScale(1, RoundingMode.DOWN).floatValue();
+    final float paddingX = BigDecimal.valueOf((widgetWidth - (pixelsPerHour * maxHours)) / 2.0).setScale(1, RoundingMode.DOWN).floatValue();
 
-    final int tempMinY = widgetHeight - 8;
-    final int tempMaxY = (widgetHeight * 2) / 3;
-    final int tempDeltaY = tempMinY - tempMaxY;
+    final float tempMinY = widgetHeight - 8;
+    final float tempMaxY = (widgetHeight * 2) / 3;
+    final float tempDeltaY = tempMinY - tempMaxY;
 
-    final int cloudY = (widgetHeight / 4) * 2;
+    final float cloudY = (widgetHeight / 4) * 2;
 
     final DateTimeFormatter dayNamesFormatter = DateTimeFormat.forPattern("EE").withLocale(new Locale("es"));
 
@@ -76,7 +78,7 @@ public class WeatherRenderer {
     final Paint conditionHeavyRainPaintEven;
 
 
-    int dateToX(LocalDateTime date, LocalDateTime now) {
+    float dateToX(LocalDateTime date, LocalDateTime now) {
         LocalDateTime max = now.plusDays(WeatherService.INSTANCE.getCurrentData().getMaxDays());
         if (date.isBefore(now)) return paddingX;
         if (date.isAfter(max)) return widgetWidth - paddingX;
@@ -85,7 +87,7 @@ public class WeatherRenderer {
     }
 
 
-    int tempToY(float temp, WeatherData weatherData) {
+    float tempToY(float temp, WeatherData weatherData) {
         float thisTempDist = (temp - weatherData.getMinTemp());
         if (thisTempDist == 0) return tempMinY;
         return tempMinY - (int) ((thisTempDist * tempDeltaY) / weatherData.getDeltaTemp());
@@ -96,11 +98,11 @@ public class WeatherRenderer {
         return (float) (upper ? cloudY - v : cloudY + v);
     }
 
-    int humidityToY(float humidity) {
+    float humidityToY(float humidity) {
         return tempMinY - (int) ((humidity/100.0) * tempDeltaY);
     }
 
-    int windToY(float wind, WeatherData weatherData) {
+    float windToY(float wind, WeatherData weatherData) {
         return tempMinY - (int) ((wind / 100.0) * tempDeltaY);
     }
 
@@ -232,15 +234,15 @@ public class WeatherRenderer {
             LocalDateTime quarterday = currentDate.toLocalDateTime(LocalTime.parse("06:00:00"));
             LocalDateTime threequarterday = currentDate.toLocalDateTime(LocalTime.parse("18:00:00"));
             LocalDateTime midnight = currentDate.plusDays(1).toLocalDateTime(LocalTime.parse("00:00:00"));
-            int sunraiseX = dateToX(sunraiseSunset.getSunrise(), now);
-            int sunsetX = dateToX(sunraiseSunset.getSunset(), now);
-            int startX = dateToX(start, now);
-            int midnightX = dateToX(midnight, now);
-            int middayX = dateToX(midday, now);
-            int quarterdayX = dateToX(quarterday, now);
-            int threequarterdayX = dateToX(threequarterday, now);
+            float sunraiseX = dateToX(sunraiseSunset.getSunrise(), now);
+            float sunsetX = dateToX(sunraiseSunset.getSunset(), now);
+            float startX = dateToX(start, now);
+            float midnightX = dateToX(midnight, now);
+            float middayX = dateToX(midday, now);
+            float quarterdayX = dateToX(quarterday, now);
+            float threequarterdayX = dateToX(threequarterday, now);
 
-            int gradientSize = pixelsPerHour * 2;
+            float gradientSize = pixelsPerHour * 2;
 
             LinearGradient shaderDawn;
             LinearGradient shaderDusk;
@@ -317,7 +319,7 @@ public class WeatherRenderer {
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .filter(forecastItem -> !forecastItem.getCondition().equals(ForecastItem.Condition.UNKNOWN))
                 .forEach(forecastItem -> {
-                    final int x = dateToX(forecastItem.getTime(), now);
+                    final float x = dateToX(forecastItem.getTime(), now);
 
                     Paint paintForCondition = getPaintForCondition(forecastItem.getCondition(), even.getAndSet(!even.get()));
                     if (paintForCondition != null) canvas.drawLine(x, cloudY, x, widgetHeight, paintForCondition);
@@ -334,8 +336,8 @@ public class WeatherRenderer {
         weatherData.getForecasts().stream()
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .forEach(forecastItem -> {
-                    final int x = dateToX(forecastItem.getTime(), now);
-                    final int y = humidityToY(forecastItem.getHumidity());
+                    final float x = dateToX(forecastItem.getTime(), now);
+                    final float y = humidityToY(forecastItem.getHumidity());
                     humidityLine.lineTo(x, y);
                 });
 
@@ -352,8 +354,8 @@ public class WeatherRenderer {
         weatherData.getForecasts().stream()
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .forEach(forecastItem -> {
-                    final int x = dateToX(forecastItem.getTime(), now);
-                    final int y = windToY(forecastItem.getWindSpeed(), weatherData);
+                    final float x = dateToX(forecastItem.getTime(), now);
+                    final float y = windToY(forecastItem.getWindSpeed(), weatherData);
                     windLine.lineTo(x, y);
                 });
 
@@ -393,7 +395,7 @@ public class WeatherRenderer {
 
     private void drawPlace(Canvas canvas, WeatherData weatherData) {
 //        canvas.drawText(WeatherService.INSTANCE.isRefreshing() ? "Updating" : weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
-        canvas.drawText(weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+        canvas.drawText(StringUtils.abbreviate(weatherData.getCurrentTempAndPlace(), 22), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
     }
 
     private String getDayName(LocalDateTime date) {
@@ -412,8 +414,8 @@ public class WeatherRenderer {
         weatherData.getForecasts().stream()
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData))
                 .forEach(forecastItem -> {
-                    final int x = dateToX(forecastItem.getTime(), now);
-                    final int y = tempToY(forecastItem.getTemp(), weatherData);
+                    final float x = dateToX(forecastItem.getTime(), now);
+                    final float y = tempToY(forecastItem.getTemp(), weatherData);
                     tempPath.lineTo(x, y);
                     tempPathLine.lineTo(x, y);
                 });

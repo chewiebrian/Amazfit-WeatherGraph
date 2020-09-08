@@ -103,11 +103,16 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     }
 
 
-    public void refreshSlpt(boolean redraw) {
+    public void refreshSlptAndPurgeLastRender(boolean redraw) {
+        if (this.lastRender != null) this.lastRender.recycle();
+        this.lastRender = null;
+
         if (this.service instanceof AbstractWatchFace) {
             ((AbstractWatchFace) this.service).restartSlpt(redraw);
         }
     }
+
+    Bitmap lastRender = null;
 
     @Override
     public void onDrawDigital(Canvas canvas, float width, float height, float centerX, float centerY, int seconds, int minutes, int hours, int year, int month, int day, int week, int ampm) {
@@ -123,7 +128,10 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         if (currentData.isEmpty()) {
             drawNoData(canvas);
         } else {
-            renderer.render(canvas, currentData, now);
+            if (lastRender == null) {
+                lastRender = generateBitmap(currentData, now);
+            }
+            canvas.drawBitmap(lastRender, 0f, 0f, new Paint());
         }
 
         drawDate(canvas, now);
@@ -208,7 +216,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         timePaint.getTextBounds(timeString, 0, timeString.length(), timeBounds);
 
         drawClockStr(canvas, timeString);
-        canvas.drawText(secondsString, (canvas.getWidth() / 2) +  timeBounds.centerX() + 10, canvas.getHeight() - 100 + 16,secondsPaint );
+        canvas.drawText(secondsString, (canvas.getWidth() / 2) + timeBounds.centerX() + 10, canvas.getHeight() - 100 + 16, secondsPaint);
     }
 
     private void drawClockStr(Canvas canvas, String str) {
@@ -267,7 +275,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         if (StringUtils.isNotBlank(customData.notifications) && !StringUtils.equalsIgnoreCase(customData.notifications, "0")) {
             String text = customData.notifications;
             canvas.drawText(text, canvas.getWidth() / 6, canvas.getHeight() - 100 + 32, phoneDataPaint);
-            canvas.drawBitmap(notificationsBmp, (canvas.getWidth() / 6) - phoneDataPaint.measureText(text)-2, canvas.getHeight() - 102, new Paint());
+            canvas.drawBitmap(notificationsBmp, (canvas.getWidth() / 6) - phoneDataPaint.measureText(text) - 2, canvas.getHeight() - 102, new Paint());
         }
 
     }
@@ -309,7 +317,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 return;
         }
 
-        if (refresh) refreshSlpt(true);
+        if (refresh) refreshSlptAndPurgeLastRender(true);
     }
 
     @Override
@@ -320,7 +328,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         updateCustomData(service);
 
         SlptPictureView canvas = new SlptPictureView();
-        canvas.setImagePicture(generateBitmap());
+        canvas.setImagePicture(generateBitmapForSlpt());
 
         SlptLinearLayout hourLayout = new SlptLinearLayout();
         hourLayout.add(new SlptHourHView());
@@ -352,7 +360,16 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         return Arrays.asList(canvas, hourLayout, minuteLayout);
     }
 
-    private byte[] generateBitmap() {
+    private Bitmap generateBitmap(WeatherData currentData, LocalDateTime now) {
+        final Bitmap bitmap = Bitmap.createBitmap(320, 300, Bitmap.Config.ARGB_8888);
+        final Canvas canvas = new Canvas(bitmap);
+
+        renderer.render(canvas, currentData, now);
+
+        return bitmap;
+    }
+
+    private byte[] generateBitmapForSlpt() {
         final Bitmap bitmap = Bitmap.createBitmap(320, 300, Bitmap.Config.RGB_565);
         final LocalDateTime now = LocalDateTime.now();
 
