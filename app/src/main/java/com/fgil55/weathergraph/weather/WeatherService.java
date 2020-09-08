@@ -50,10 +50,12 @@ public class WeatherService {
         }
 
         if (needsRefresh) {
+            Log.d("WeatherGraph", "Refreshing weather data");
             this.refreshing.set(true);
 
             scraper.scrap(context, currentData, now)
                     .then(ignore -> {
+                        Log.d("WeatherGraph", "Refresh OK");
                         this.refreshing.set(false);
                         this.lastRefreshed.set(now);
                         saveLastState();

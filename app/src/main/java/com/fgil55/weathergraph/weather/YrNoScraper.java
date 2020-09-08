@@ -230,7 +230,7 @@ https://api.met.no/weatherapi/locationforecast/2.0/complete.json?lat=43.29768253
                 .addQueryParameter("date", now.toLocalDate().toString())
                 .addQueryParameter("lat", String.valueOf(currentData.getLat()))
                 .addQueryParameter("lon", String.valueOf(currentData.getLon()))
-                .addQueryParameter("days", String.valueOf(currentData.getMaxDays() + 1))
+                .addQueryParameter("days", String.valueOf(currentData.getMaxDays() + 2))
                 .addQueryParameter("offset", now.toDateTime(DateTimeZone.getDefault()).toString(zoneFormatter))
                 .build();
     }
