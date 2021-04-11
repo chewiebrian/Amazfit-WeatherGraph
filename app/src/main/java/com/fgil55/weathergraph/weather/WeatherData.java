@@ -6,6 +6,7 @@ import org.joda.time.DateTimeUtils;
 import org.joda.time.LocalDateTime;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,7 +20,7 @@ public class WeatherData implements Serializable {
     private float lat = 43.323065f, lon = -1.9284507f;   //Pasaia
     //    private float lat = 63.4305f , lon = 10.3951f;   //Trondheim
     private String place;
-    private int maxDays = 3;
+    private int maxDays = 4;
 
     public List<SunraiseSunset> getSunraiseSunsets() {
         return sunraiseSunsets;
@@ -129,5 +130,9 @@ public class WeatherData implements Serializable {
 
     public String getCurrentTempAndPlace() {
         return String.format("%dº %s", (int) forecasts.get(0).getTemp(), place);
+    }
+
+    public int getCurrentUv() {
+        return Math.round(getForecasts().stream().findFirst().map(ForecastItem::getUv).orElse(0f));
     }
 }

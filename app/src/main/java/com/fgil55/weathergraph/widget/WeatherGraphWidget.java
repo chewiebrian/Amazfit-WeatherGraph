@@ -23,6 +23,7 @@ import com.fgil55.weathergraph.data.MultipleWatchDataListener;
 import com.fgil55.weathergraph.data.Steps;
 import com.fgil55.weathergraph.data.Time;
 import com.fgil55.weathergraph.util.Utility;
+import com.fgil55.weathergraph.weather.SunraiseSunset;
 import com.fgil55.weathergraph.weather.WeatherData;
 import com.fgil55.weathergraph.weather.WeatherService;
 import com.fgil55.weathergraph.resource.ResourceManager;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static android.content.Context.BATTERY_SERVICE;
 
@@ -57,16 +59,24 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     private Context context;
     private Paint clear = new Paint();
     final Paint noDataPaint = new Paint();
+    final TextPaint datePaint = new TextPaint();
     final TextPaint timePaint = new TextPaint();
     final TextPaint secondsPaint = new TextPaint();
     final TextPaint batteryPaint = new TextPaint();
     final TextPaint phoneDataPaint = new TextPaint();
     final TextPaint stepsHearthRatePaint = new TextPaint();
+    final TextPaint sunraisePaint = new TextPaint();
+    final TextPaint sunsetPaint = new TextPaint();
+    final TextPaint uvPaint = new TextPaint();
     final Paint hearthIconPaint = new Paint();
+    final Paint uvIconPaint = new Paint();
     private Bitmap heartRateBmp;
     private Bitmap batteryBmp;
     private Bitmap phoneBatteryBmp;
     private Bitmap notificationsBmp;
+    private Bitmap sunriseBmp;
+    private Bitmap sunsetBmp;
+    private Bitmap uvBmp;
 
     private Steps steps = new Steps(1000, 1000);
     private HeartRate heartRate = new HeartRate(60);
@@ -81,23 +91,11 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
             this.batteryBmp = Util.decodeImage(context.getResources(), "battery.png");
             this.phoneBatteryBmp = Util.decodeImage(context.getResources(), "phone_battery.png");
             this.notificationsBmp = Util.decodeImage(context.getResources(), "notifications.png");
+            this.sunriseBmp = Util.decodeImage(context.getResources(), "sunrise.png");
+            this.sunsetBmp = Util.decodeImage(context.getResources(), "sunset.png");
+            this.uvBmp = Util.decodeImage(context.getResources(), "uv.png");
         }
 
-        timePaint.setAntiAlias(true);
-        timePaint.setColor(Color.BLACK);
-        timePaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
-        timePaint.setTextAlign(Paint.Align.CENTER);
-        timePaint.setTextSize(100.0f);
-
-        secondsPaint.setAntiAlias(true);
-        secondsPaint.setColor(Color.BLACK);
-        secondsPaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
-        secondsPaint.setTextAlign(Paint.Align.CENTER);
-        secondsPaint.setTextSize(25.0f);
-    }
-
-    @Override
-    public void init(Service service) {
         clear.setColor(Color.WHITE);
         clear.setStyle(Paint.Style.FILL);
 
@@ -130,7 +128,36 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         hearthIconPaint.setAntiAlias(true);
         hearthIconPaint.setColorFilter(new LightingColorFilter(Color.RED, 1));
+        uvIconPaint.setAntiAlias(true);
 
+        timePaint.setAntiAlias(true);
+        timePaint.setColor(Color.BLACK);
+        timePaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
+        timePaint.setTextAlign(Paint.Align.CENTER);
+        timePaint.setTextSize(100.0f);
+
+        secondsPaint.setAntiAlias(true);
+        secondsPaint.setColor(Color.BLACK);
+        secondsPaint.setTypeface(ResourceManager.getTypeFace(context.getResources(), ResourceManager.Font.Bold));
+        secondsPaint.setTextAlign(Paint.Align.CENTER);
+        secondsPaint.setTextSize(25.0f);
+
+        sunraisePaint.setAntiAlias(true);
+        sunraisePaint.setColor(Color.parseColor("#555555"));
+        sunraisePaint.setTypeface(Typeface.DEFAULT);
+        sunraisePaint.setTextAlign(Paint.Align.LEFT);
+        sunraisePaint.setTextSize(14.0f);
+
+        sunsetPaint.setAntiAlias(true);
+        sunsetPaint.setColor(Color.parseColor("#555555"));
+        sunsetPaint.setTypeface(Typeface.DEFAULT);
+        sunsetPaint.setTextAlign(Paint.Align.RIGHT);
+        sunsetPaint.setTextSize(14.0f);
+
+    }
+
+    @Override
+    public void init(Service service) {
         this.service = service;
         setContext(service.getApplicationContext());
     }
@@ -153,7 +180,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         final LocalDateTime now = new LocalDateTime(year, month, day, hours, minutes, seconds);
         drawDate(canvas, now);
-        drawClock(canvas, now);
+        Rect timeBounds = drawClock(canvas, now);
         drawStepsHearthRate(canvas);
 
         updateLatLon(this.service);
@@ -161,6 +188,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         WeatherService.INSTANCE.refresh(context, LocalDateTime.now());
 
         WeatherData currentData = WeatherService.INSTANCE.getCurrentData();
+        drawUv(canvas, currentData, timeBounds);
 
         if (currentData.isEmpty()) {
             drawNoData(canvas);
@@ -169,6 +197,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 lastRender = generateBitmap(currentData, now);
             }
             canvas.drawBitmap(lastRender, 0f, 0f, EMPTY_PAINT);
+            drawSunriseSunset(canvas, currentData, now);
         }
 
         drawBattery(canvas);
@@ -224,7 +253,6 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
     private void drawDate(Canvas canvas, LocalDateTime now) {
         final String dateString = now.toString("E d MMM").toLowerCase().replaceAll("\\.", "");
-        TextPaint datePaint = new TextPaint();
         datePaint.setAntiAlias(true);
         datePaint.setColor(Color.BLACK);
         datePaint.setTypeface(Typeface.DEFAULT_BOLD);
@@ -234,7 +262,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         canvas.drawText(dateString, canvas.getWidth() / 2, canvas.getHeight() - 112, datePaint);
     }
 
-    private void drawClock(Canvas canvas, LocalDateTime now) {
+    private Rect drawClock(Canvas canvas, LocalDateTime now) {
         //final String timeString = now.getSecondOfMinute() % 2 > 0 ? now.toString("H:mm") : now.toString("H mm");
         final String timeString = now.toString("H:mm");
         final String secondsString = now.toString("ss");
@@ -244,10 +272,42 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         drawClockStr(canvas, timeString);
         canvas.drawText(secondsString, (canvas.getWidth() / 2) + timeBounds.centerX() + 10, canvas.getHeight() - 100 + 16, secondsPaint);
+
+        return timeBounds;
     }
 
     private void drawClockStr(Canvas canvas, String str) {
         canvas.drawText(str, canvas.getWidth() / 2, canvas.getHeight() - 32, timePaint);
+    }
+
+    private void drawUv(Canvas canvas, WeatherData weatherData, Rect timeBounds) {
+        final int currentUv = weatherData.getCurrentUv();
+        final int uvColor;
+
+        if (currentUv <=2) {
+            uvColor = Color.GREEN;
+            return;
+        } else if (currentUv > 2 && currentUv <= 5) {
+            uvColor = Color.YELLOW;
+        }else if (currentUv > 5 && currentUv <= 7) {
+            uvColor = Color.parseColor("#FFA500");
+        }else if (currentUv > 7 && currentUv <= 10) {
+            uvColor = Color.RED;
+        } else {
+            uvColor = Color.parseColor("#EE82EE");
+        }
+
+        uvPaint.setAntiAlias(true);
+        uvPaint.setColor(uvColor);
+        uvIconPaint.setColorFilter(new LightingColorFilter(uvColor, 1));
+        uvPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        uvPaint.setTextAlign(Paint.Align.LEFT);
+        uvPaint.setTextSize(18.0f);
+
+
+        final String uvString = String.valueOf(currentUv);
+        canvas.drawBitmap(uvBmp, (canvas.getWidth() / 2) - timeBounds.centerX(), canvas.getHeight() - 130, uvIconPaint);
+        canvas.drawText(uvString, (canvas.getWidth() / 2) - timeBounds.centerX() + 25, canvas.getHeight() - 112, uvPaint);
     }
 
     private void drawStepsHearthRate(Canvas canvas) {
@@ -294,6 +354,25 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
             canvas.drawBitmap(notificationsBmp, (canvas.getWidth() / 6) - phoneDataPaint.measureText(text) - 2, canvas.getHeight() - 102, EMPTY_PAINT);
         }
 
+    }
+
+    private void drawSunriseSunset(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+        final Optional<SunraiseSunset> optSunraiseSunset = weatherData.getSunraiseSunsets().stream()
+                .filter(s -> s.getDate().equals(now.toLocalDate()))
+                .findFirst();
+
+        optSunraiseSunset.ifPresent(sunraiseSunset -> {
+            final String sunriseString = sunraiseSunset.getSunrise().toString("H:mm");
+            final String sunsetString = sunraiseSunset.getSunset().toString("H:mm");
+
+            Rect sunsetStringBounds = new Rect();file:///home/fernando/Amazfit/GreatFit/app/src/main/assets/icons/uv.png
+            sunsetPaint.getTextBounds(sunsetString, 0, sunsetString.length(), sunsetStringBounds);
+
+            canvas.drawText(sunriseString, 32, canvas.getHeight() - 114, sunraisePaint);
+            canvas.drawBitmap(sunriseBmp, 10, canvas.getHeight() - 132, EMPTY_PAINT);
+            canvas.drawText(sunsetString, canvas.getWidth()-12, canvas.getHeight() - 114, sunsetPaint);
+            canvas.drawBitmap(sunsetBmp, canvas.getWidth() - sunsetStringBounds.width() - 35, canvas.getHeight() - 132, EMPTY_PAINT);
+        });
     }
 
     @Override

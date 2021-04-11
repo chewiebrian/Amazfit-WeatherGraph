@@ -29,9 +29,10 @@ public class ForecastItem implements Serializable {
     private final float humidity;
     private final int windDirection;
     private final float windSpeed;
+    private final float uv;
     private final Condition condition;
 
-    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation, float humidity, int windDirection, float windSpeed, float uvIndex, Condition condition) {
+    public ForecastItem(LocalDateTime time, float temp, float cloudArea, int cloudGroup, float precipitation, float humidity, int windDirection, float windSpeed, float uvIndex, float uv, Condition condition) {
         this.time = time;
         this.temp = temp;
         this.cloudArea = cloudArea;
@@ -40,6 +41,7 @@ public class ForecastItem implements Serializable {
         this.humidity = humidity;
         this.windDirection = windDirection;
         this.windSpeed = windSpeed;
+        this.uv = uv;
         this.condition = condition;
     }
 
@@ -49,10 +51,12 @@ public class ForecastItem implements Serializable {
         this.time = ISODateTimeFormat.dateTimeNoMillis().parseDateTime(item.getString("time")).toLocalDateTime();
         this.temp = (float) details.getDouble("air_temperature");
         this.windDirection = details.getInt("wind_from_direction");
-        this.windSpeed = (float)details.getDouble("wind_speed") * 3.6f;  // m/s to km/h
+        this.windSpeed = (float) details.getDouble("wind_speed") * 3.6f;  // m/s to km/h
         this.humidity = (float) details.getDouble("relative_humidity");
         this.cloudArea = (float) details.getDouble("cloud_area_fraction");
         this.cloudGroup = this.cloudArea > 0f ? cloudGroupCounter.get() : cloudGroupCounter.incrementAndGet();
+        this.uv = (details.has("ultraviolet_index_clear_sky")) ? (float) details.getDouble("ultraviolet_index_clear_sky") : 0.0f;
+
         if (data.has("next_1_hours")) {
             final JSONObject summaryNextHour = data.getJSONObject("next_1_hours").getJSONObject("summary");
             final JSONObject detailsNextHour = data.getJSONObject("next_1_hours").getJSONObject("details");
@@ -68,12 +72,12 @@ public class ForecastItem implements Serializable {
                 if (symbolCode.contains("light")) {
                     this.condition = Condition.LIGHT_RAIN;
                 } else {
-                    this.condition=Condition.HEAVY_RAIN;
+                    this.condition = Condition.HEAVY_RAIN;
                 }
             } else if (symbolCode.contains("snow")) {
-                this.condition= Condition.SNOW;
+                this.condition = Condition.SNOW;
             } else {
-                this.condition=Condition.UNKNOWN;
+                this.condition = Condition.UNKNOWN;
             }
         } else {
             this.precipitation = 0.0f;
@@ -117,6 +121,10 @@ public class ForecastItem implements Serializable {
         return condition;
     }
 
+    public float getUv() {
+        return uv;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -132,6 +140,7 @@ public class ForecastItem implements Serializable {
                 .append(precipitation, that.precipitation)
                 .append(time, that.time)
                 .append(humidity, that.humidity)
+                .append(uv, that.uv)
                 .isEquals();
     }
 
@@ -144,6 +153,7 @@ public class ForecastItem implements Serializable {
                 .append(cloudArea)
                 .append(cloudGroup)
                 .append(precipitation)
+                .append(uv)
                 .toHashCode();
     }
 }
