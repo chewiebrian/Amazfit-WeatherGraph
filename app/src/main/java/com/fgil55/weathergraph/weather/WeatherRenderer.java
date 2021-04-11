@@ -65,6 +65,7 @@ public class WeatherRenderer {
     final Paint currentConditionsPaint = new Paint();
     final Paint clear = new Paint();
 
+    final Paint precipPaint = new Paint();
     final Paint weakPrecipLinePaint = new Paint();
     final Paint strongPrecipLinePaint = new Paint();
 
@@ -111,7 +112,7 @@ public class WeatherRenderer {
     }
 
     public WeatherRenderer() {
-        clear.setColor(Color.BLACK);
+        clear.setColor(Color.WHITE);
         clear.setStyle(Paint.Style.FILL);
 
         mPaintDay.setColor(colorDay);
@@ -122,19 +123,19 @@ public class WeatherRenderer {
         daySeparatorPaint.setPathEffect(new DashPathEffect(new float[]{2, 4}, 0));
 
         dayNamesPaint.setAntiAlias(true);
-        dayNamesPaint.setColor(Color.parseColor("#aaaaaa"));
+        dayNamesPaint.setColor(Color.parseColor("#555555"));
         dayNamesPaint.setTextSize(14);
         dayNamesPaint.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
 
-        dayDurationPaint.setColor(Color.parseColor("#555555"));
+        dayDurationPaint.setColor(Color.parseColor("#aaaaaa"));
         dayDurationPaint.setStrokeWidth(4.0f);
-        dayHoursPaint.setColor(Color.parseColor("#555555"));
+        dayHoursPaint.setColor(Color.parseColor("#aaaaaa"));
         dayHoursPaint.setStrokeWidth(2.0f);
 
         tempPaint.setColor(Color.parseColor("#ffaa00"));
         tempPaint.setAntiAlias(true);
 
-        tempPaintLine.setColor(Color.parseColor("#ffffff"));
+        tempPaintLine.setColor(Color.   parseColor("#ffffff"));
         tempPaintLine.setStyle(Paint.Style.STROKE);
         tempPaintLine.setAntiAlias(true);
         tempPaintLine.setStrokeWidth(4.0f);
@@ -220,12 +221,17 @@ public class WeatherRenderer {
         conditionHeavyRainPaintEven = new Paint(conditionHeavyRainPaint);
         conditionHeavyRainPaintEven.setPathEffect(new DashPathEffect(new float[]{2, 2}, 2));
 
+        precipPaint.setColor(Color.parseColor("#0000ff"));
+        precipPaint.setStrokeWidth(3.0f);
+        precipPaint.setAlpha(200);
     }
 
-    public void render(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
+    public void render(Canvas canvas, WeatherData weatherData, LocalDateTime now, boolean clearCanvas) {
         if (weatherData.isEmpty()) {
             return;
         }
+
+        if (clearCanvas) canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), clear);
 
         for (SunraiseSunset sunraiseSunset : weatherData.getSunraiseSunsets()) {
             LocalDate currentDate = sunraiseSunset.getDate();
@@ -475,11 +481,6 @@ public class WeatherRenderer {
     }
 
     private void drawPrecipitation(Canvas canvas, WeatherData weatherData, LocalDateTime now) {
-        final Paint precipPaint = new Paint();
-        precipPaint.setColor(Color.parseColor("#0000ff"));
-        precipPaint.setStrokeWidth(3.0f);
-        precipPaint.setAlpha(200);
-
         weatherData.getForecasts().stream()
                 .filter(forecastItem -> !isOutOfScreen(forecastItem.getTime(), now, weatherData) && forecastItem.getPrecipitation() > 0f)
                 .forEach(forecastItem -> {
