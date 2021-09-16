@@ -400,8 +400,12 @@ public class WeatherRenderer {
     }
 
     private void drawPlace(Canvas canvas, WeatherData weatherData) {
+        if (weatherData.getRefreshing().get()) {
+            canvas.drawText("Refreshing", widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+        } else {
+            canvas.drawText(StringUtils.abbreviate(weatherData.getCurrentTempAndPlace(), 22), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
+        }
 //        canvas.drawText(WeatherService.INSTANCE.isRefreshing() ? "Updating" : weatherData.getCurrentTempAndPlace(), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
-        canvas.drawText(StringUtils.abbreviate(weatherData.getCurrentTempAndPlace(), 22), widgetWidth / 2, widgetHeight / 3, currentConditionsPaint);
     }
 
     private String getDayName(LocalDateTime date) {

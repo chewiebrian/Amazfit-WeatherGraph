@@ -1,5 +1,7 @@
 package com.fgil55.weathergraph.weather;
 
+import android.util.Log;
+
 import com.fgil55.weathergraph.util.DateUtils;
 
 import org.joda.time.DateTimeUtils;
@@ -9,6 +11,8 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class WeatherData implements Serializable {
@@ -21,6 +25,9 @@ public class WeatherData implements Serializable {
     //    private float lat = 63.4305f , lon = 10.3951f;   //Trondheim
     private String place;
     private int maxDays = 4;
+
+    private final AtomicBoolean refreshing = new AtomicBoolean(false);
+    private final AtomicReference<LocalDateTime> lastRefreshed = new AtomicReference<>(LocalDateTime.parse("1970-01-01T00:00:00"));
 
     public List<SunraiseSunset> getSunraiseSunsets() {
         return sunraiseSunsets;
@@ -116,6 +123,8 @@ public class WeatherData implements Serializable {
                     .filter(sunraiseSunset -> sunraiseSunset.getDate().isBefore(now.toLocalDate()))
                     .collect(Collectors.toList());
 
+            if (!sunraiseSunsetsToRemove.isEmpty()) Log.d("WeatherGraph", "Removing " + sunraiseSunsetsToRemove.size() + " items from SunraiseSunsets data");
+
             this.sunraiseSunsets.removeAll(sunraiseSunsetsToRemove);
         }
 
@@ -123,6 +132,8 @@ public class WeatherData implements Serializable {
             final List<ForecastItem> forecastsToRemove = this.forecasts.stream()
                     .filter(forecastItem -> forecastItem.getTime().isBefore(now))
                     .collect(Collectors.toList());
+
+            if (!forecastsToRemove.isEmpty()) Log.d("WeatherGraph", "Removing " + forecastsToRemove.size() + " items from forecast data");
 
             this.forecasts.removeAll(forecastsToRemove);
         }
@@ -134,5 +145,13 @@ public class WeatherData implements Serializable {
 
     public int getCurrentUv() {
         return Math.round(getForecasts().stream().findFirst().map(ForecastItem::getUv).orElse(0f));
+    }
+
+    public AtomicBoolean getRefreshing() {
+        return refreshing;
+    }
+
+    public AtomicReference<LocalDateTime> getLastRefreshed() {
+        return lastRefreshed;
     }
 }

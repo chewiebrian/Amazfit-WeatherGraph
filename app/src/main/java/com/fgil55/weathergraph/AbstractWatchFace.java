@@ -115,7 +115,6 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
         restartSlpt(false);
     }
 
-    private final static  String TAG = "DinoDevs-GreatFit";
     public void restartSlpt(boolean redraw){
         // Sent some stuff
         //Bundle b = new Bundle();
@@ -129,9 +128,9 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
                 onCreate();
             this.stopService(this.slptIntent);
             this.startService(this.slptIntent);
-            Log.d(TAG, "AbstractWatchFace restart SLPT: OK" );
+            Log.d("WeatherGraph", "AbstractWatchFace restart SLPT: OK" );
         }catch(Exception e){
-            Log.e(TAG, "AbstractWatchFace restart SLPT: "+e.toString() );
+            Log.e("WeatherGraph", "AbstractWatchFace restart SLPT: "+e.toString() );
         }
     }
 }

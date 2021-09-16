@@ -11,7 +11,7 @@ import com.ingenic.iwds.slpt.view.core.SlptViewComponent;
 public class WeatherGraphWatchFaceSlpt extends AbstractWatchFaceSlpt {
 
     public WeatherGraphWatchFaceSlpt() {
-        super(new WeatherGraphWidget());
+        super(WeatherGraphWidget.INSTANCE);
     }
 
     @Override

@@ -46,8 +46,8 @@
         <service android:name=".WeatherGraphWatchFaceSlpt" />
         <service android:name=".WeatherGraphWatchFace" android:label="@string/watch_face" android:permission="android.permission.BIND_WALLPAPER">
             <meta-data android:name="android.service.wallpaper" android:resource="@xml/watch_face" />
-            <meta-data android:name="com.google.android.wearable.watchface.preview" android:resource="@drawable/preview_weathergraph" />
-            <meta-data android:name="com.google.android.wearable.watchface.preview_circular" android:resource="@drawable/preview_weathergraph" />
+            <meta-data android:name="com.google.android.wearable.watchface.preview" android:resource="@drawable/screen" />
+            <meta-data android:name="com.google.android.wearable.watchface.preview_circular" android:resource="@drawable/screen" />
             <meta-data android:name="com.huami.watch.watchface.hasslpt" android:value="false" />
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />

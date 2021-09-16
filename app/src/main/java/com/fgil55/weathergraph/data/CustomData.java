@@ -69,4 +69,23 @@ public class CustomData {
         // Default onDataUpdate value
         return String.format("[Custom data info] Sting 1:%s", this.JSONstr);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        CustomData that = (CustomData) o;
+
+        if (phoneBattery != null ? !phoneBattery.equals(that.phoneBattery) : that.phoneBattery != null)
+            return false;
+        return notifications != null ? notifications.equals(that.notifications) : that.notifications == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = phoneBattery != null ? phoneBattery.hashCode() : 0;
+        result = 31 * result + (notifications != null ? notifications.hashCode() : 0);
+        return result;
+    }
 }

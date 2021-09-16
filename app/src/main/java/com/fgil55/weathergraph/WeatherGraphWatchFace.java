@@ -10,7 +10,7 @@ public class WeatherGraphWatchFace extends AbstractWatchFace {
     private static WeakReference<WeatherGraphWatchFace> instance;
 
     public WeatherGraphWatchFace() {
-        super(new WeatherGraphWidget());
+        super(WeatherGraphWidget.INSTANCE);
     }
 
     @Override

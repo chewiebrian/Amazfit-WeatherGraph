@@ -58,8 +58,9 @@ public class ForecastItem implements Serializable {
         this.uv = (details.has("ultraviolet_index_clear_sky")) ? (float) details.getDouble("ultraviolet_index_clear_sky") : 0.0f;
 
         if (data.has("next_1_hours")) {
-            final JSONObject summaryNextHour = data.getJSONObject("next_1_hours").getJSONObject("summary");
-            final JSONObject detailsNextHour = data.getJSONObject("next_1_hours").getJSONObject("details");
+            final JSONObject next_1_hours = data.getJSONObject("next_1_hours");
+            final JSONObject summaryNextHour = next_1_hours.getJSONObject("summary");
+            final JSONObject detailsNextHour = next_1_hours.getJSONObject("details");
             this.precipitation = (float) detailsNextHour.getDouble("precipitation_amount");
 
             final String symbolCode = summaryNextHour.getString("symbol_code").toLowerCase();

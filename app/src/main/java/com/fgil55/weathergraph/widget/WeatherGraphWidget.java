@@ -53,6 +53,8 @@ import static android.content.Context.BATTERY_SERVICE;
 
 public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWatchDataListener {
 
+    public static final WeatherGraphWidget INSTANCE = new WeatherGraphWidget();
+
     public static final Paint EMPTY_PAINT = new Paint();
     private final WeatherRenderer renderer = new WeatherRenderer();
     private Service service;
@@ -183,9 +185,9 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         Rect timeBounds = drawClock(canvas, now);
         drawStepsHearthRate(canvas);
 
-        updateLatLon(this.service);
+        updateLatLon(context);
 
-        WeatherService.INSTANCE.refresh(context, LocalDateTime.now());
+        WeatherService.INSTANCE.refresh(context, LocalDateTime.now(), () -> this.refreshSlptAndPurgeLastRender(true));
 
         WeatherData currentData = WeatherService.INSTANCE.getCurrentData();
         drawUv(canvas, currentData, timeBounds);
@@ -204,10 +206,10 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         drawPhoneData(canvas);
     }
 
-    private void updateLatLon(Service service) {
+    private boolean updateLatLon(Context context) {
         try {
             // Get ALL data from system
-            final String weatherInfoJson = Settings.System.getString(service.getApplicationContext().getContentResolver(), "WeatherInfo");
+            final String weatherInfoJson = Settings.System.getString(context.getContentResolver(), "WeatherInfo");
 
             // Extract data from JSON
             JSONObject weather_data = new JSONObject(weatherInfoJson);
@@ -217,9 +219,11 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
                 WeatherService.INSTANCE.getCurrentData().setLat(lat);
                 WeatherService.INSTANCE.getCurrentData().setLon(lon);
+                return true;
             }
         } catch (Throwable ignore) {
         }
+        return false;
     }
 
     private void updateCustomData(Service service) {
@@ -386,8 +390,9 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         switch (type) {
             case BATTERY:
-                this.batteryData = (Battery) value;
-                refresh = true;
+                final Battery newBatteryData = (Battery) value;
+                refresh = !newBatteryData.equals(this.batteryData);
+                this.batteryData = newBatteryData;
                 break;
             case HEART_RATE:
                 this.heartRate = (HeartRate) value;
@@ -396,12 +401,14 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 this.steps = (Steps) value;
                 break;
             case CUSTOM:
-                this.customData = (CustomData) value;
-                refresh = true;
+                final CustomData newCustomData = (CustomData) value;
+                refresh = !newCustomData.equals(customData);
+                this.customData = newCustomData;
                 break;
             case WEATHER:
                 //com.fgil55.weathergraph.data.WeatherData wd = (com.fgil55.weathergraph.data.WeatherData) value;
-                refresh = true;
+                //refresh = true;
+                if (this.context != null) refresh = updateLatLon(this.context);
                 break;
             case TIME:
                 Time time = (Time) value;
@@ -418,7 +425,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     @Override
     public List<SlptViewComponent> buildSlptViewComponent(Service service) {
         setContext(service.getApplicationContext());
-        updateLatLon(service);
+        updateLatLon(service.getApplicationContext());
         updateBattery(service);
         updateCustomData(service);
 

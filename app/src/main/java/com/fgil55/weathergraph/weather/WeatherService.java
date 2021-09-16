@@ -17,15 +17,14 @@ import java.io.ObjectOutputStream;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 public class WeatherService {
 
     public static WeatherService INSTANCE = new WeatherService();
-    private final AtomicBoolean refreshing = new AtomicBoolean(false);
-    private final AtomicReference<LocalDateTime> lastRefreshed = new AtomicReference<>(LocalDateTime.parse("1970-01-01T00:00:00"));
     private final WeatherScraper scraper;
 
-    private Duration refreshPeriod = Duration.standardMinutes(15);
+    private Duration refreshPeriod = Duration.standardMinutes(60);
 
     private WeatherData currentData = new WeatherData();
 
@@ -35,15 +34,15 @@ public class WeatherService {
     }
 
     private boolean lastRefreshIntervalShorterThan(LocalDateTime now, Duration duration) {
-        return new Interval(lastRefreshed.get().toDateTime().toInstant(), now.toDateTime().toInstant()).toDuration().isShorterThan(duration);
+        return new Interval(currentData.getLastRefreshed().get().toDateTime().toInstant(), now.toDateTime().toInstant()).toDuration().isShorterThan(duration);
     }
 
-    public synchronized boolean refresh(Context context, LocalDateTime now) {
+    public synchronized boolean refresh(Context context, LocalDateTime now, Runnable callback) {
         boolean needsRefresh = false;
 
         currentData.removeExpiredData(now);
 
-        if (refreshing.get()) needsRefresh = false;
+        if (currentData.getRefreshing().get()) needsRefresh = false;
         else if (currentData.needsRefresh()) needsRefresh = true;
         else if (lastRefreshIntervalShorterThan(now, refreshPeriod)) {
             needsRefresh = false;
@@ -51,19 +50,20 @@ public class WeatherService {
 
         if (needsRefresh) {
             Log.d("WeatherGraph", "Refreshing weather data");
-            this.refreshing.set(true);
+            currentData.getRefreshing().set(true);
 
             scraper.scrap(context, currentData, now)
                     .then(ignore -> {
                         Log.d("WeatherGraph", "Refresh OK");
-                        this.refreshing.set(false);
-                        this.lastRefreshed.set(now);
+                        currentData.getRefreshing().set(false);
+                        currentData.getLastRefreshed().set(now);
                         saveLastState();
+                        callback.run();
                         return this;
                     })
                     .error(error -> {
                         Log.e("WeatherGraph", Objects.toString(error));
-                        refreshing.set(false);
+                        currentData.getRefreshing().set(false);
                     });
         }
 
@@ -93,15 +93,11 @@ public class WeatherService {
              ObjectInputStream ois = new ObjectInputStream(in)) {
             this.currentData = (WeatherData) ois.readObject();
 
-            this.refreshing.set(false);
+            currentData.getRefreshing().set(false);
         } catch (Throwable e) {
             Log.e("WeatherGraph", e.toString());
             cacheFile.delete();
         }
-    }
-
-    public boolean isRefreshing() {
-        return refreshing.get();
     }
 
     public WeatherData getCurrentData() {
