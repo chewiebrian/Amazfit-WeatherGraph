@@ -22,6 +22,10 @@ public class Battery {
         return scale;
     }
 
+    public String getLabel() {
+        return level * 100 / scale + "%";
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

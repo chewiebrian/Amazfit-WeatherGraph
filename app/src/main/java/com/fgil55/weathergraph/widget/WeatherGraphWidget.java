@@ -22,6 +22,7 @@ import com.fgil55.weathergraph.data.HeartRate;
 import com.fgil55.weathergraph.data.MultipleWatchDataListener;
 import com.fgil55.weathergraph.data.Steps;
 import com.fgil55.weathergraph.data.Time;
+import com.fgil55.weathergraph.util.SystemProperties;
 import com.fgil55.weathergraph.util.Utility;
 import com.fgil55.weathergraph.weather.SunraiseSunset;
 import com.fgil55.weathergraph.weather.WeatherData;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static android.content.Context.BATTERY_SERVICE;
@@ -256,7 +258,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
     }*/
 
     private void drawDate(Canvas canvas, LocalDateTime now) {
-        final String dateString = now.toString("E d MMM").toLowerCase().replaceAll("\\.", "");
+        final String dateString = now.toString("E d MMM", SystemProperties.LOCALE).toLowerCase().replaceAll("\\.", "");
         datePaint.setAntiAlias(true);
         datePaint.setColor(Color.BLACK);
         datePaint.setTypeface(Typeface.DEFAULT_BOLD);
@@ -332,8 +334,7 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
         batteryPaint.setTextSize(16.0f);
         batteryPaint.setShadowLayer(0.01f, 2, 2, Color.BLACK);
 
-        String text = this.batteryData.getLevel() * 100 / this.batteryData.getScale() + "%";
-        canvas.drawText(text, canvas.getWidth() / 2 - 20, 27, batteryPaint);
+        canvas.drawText(this.batteryData.getLabel(), canvas.getWidth() / 2 - 20, 27, batteryPaint);
         canvas.drawBitmap(batteryBmp, canvas.getWidth() / 2 - 32 - 20, 11, EMPTY_PAINT);
     }
 
@@ -390,9 +391,9 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
 
         switch (type) {
             case BATTERY:
-                final Battery newBatteryData = (Battery) value;
-                refresh = !newBatteryData.equals(this.batteryData);
-                this.batteryData = newBatteryData;
+                Battery newValue = (Battery) value;
+                refresh = !newValue.equals(this.batteryData);
+                this.batteryData = newValue;
                 break;
             case HEART_RATE:
                 this.heartRate = (HeartRate) value;
@@ -401,13 +402,12 @@ public class WeatherGraphWidget extends DigitalClockWidget implements MultipleWa
                 this.steps = (Steps) value;
                 break;
             case CUSTOM:
-                final CustomData newCustomData = (CustomData) value;
-                refresh = !newCustomData.equals(customData);
+                CustomData newCustomData = (CustomData) value;
+                refresh = !this.customData.equals(newCustomData);
                 this.customData = newCustomData;
                 break;
             case WEATHER:
                 //com.fgil55.weathergraph.data.WeatherData wd = (com.fgil55.weathergraph.data.WeatherData) value;
-                //refresh = true;
                 if (this.context != null) refresh = updateLatLon(this.context);
                 break;
             case TIME:

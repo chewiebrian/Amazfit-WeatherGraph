@@ -6,7 +6,7 @@ android {
 //    useLibrary 'org.apache.http.legacy'
 
     defaultConfig {
-        applicationId "com.fgil55.weathertest"
+        applicationId "com.fgil55.weathergraph"
         minSdkVersion 21
         targetSdkVersion 22
         versionCode 1

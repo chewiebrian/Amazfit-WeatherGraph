@@ -98,11 +98,11 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
         this.widgets.addAll(Arrays.asList(widgets));
     }
 
-    protected AbstractWatchFace() {}
+    protected AbstractWatchFace() {
+    }
 
     // Status bar (ex.battery charging)
     public final Engine onCreateEngine() {
-
         return AnalogClockWidget.class.isInstance(this.clock) ? new AnalogEngine((AnalogClockWidget) this.clock) : new DigitalEngine((DigitalClockWidget) this.clock);
     }
 
@@ -111,11 +111,13 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
         this.slptIntent = new Intent(this, this.slptClockClass());
     }
 
-    public void restartSlpt(){
+    public void restartSlpt() {
         restartSlpt(false);
     }
 
-    public void restartSlpt(boolean redraw){
+    private final static String TAG = "WeatherGraph";
+
+    public void restartSlpt(boolean redraw) {
         // Sent some stuff
         //Bundle b = new Bundle();
         //b.putSerializable("key", this.widgets);
@@ -128,9 +130,9 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
                 onCreate();
             this.stopService(this.slptIntent);
             this.startService(this.slptIntent);
-            Log.d("WeatherGraph", "AbstractWatchFace restart SLPT: OK" );
-        }catch(Exception e){
-            Log.e("WeatherGraph", "AbstractWatchFace restart SLPT: "+e.toString() );
+            Log.d(TAG, "AbstractWatchFace restart SLPT: OK");
+        } catch (Exception e) {
+            Log.e(TAG, "AbstractWatchFace restart SLPT: " + e.toString());
         }
     }
 }

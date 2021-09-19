@@ -2,6 +2,7 @@ package com.fgil55.weathergraph.weather;
 
 import android.content.Context;
 import android.os.Environment;
+import android.provider.Settings;
 import android.util.Log;
 
 import org.joda.time.Duration;
@@ -37,12 +38,22 @@ public class WeatherService {
         return new Interval(currentData.getLastRefreshed().get().toDateTime().toInstant(), now.toDateTime().toInstant()).toDuration().isShorterThan(duration);
     }
 
+    private boolean isAirplaneMode(Context context) {
+        return Settings.Global.getInt(
+                context.getContentResolver(),
+                Settings.Global.AIRPLANE_MODE_ON, 0) == 1;
+    }
+
     public synchronized boolean refresh(Context context, LocalDateTime now, Runnable callback) {
         boolean needsRefresh = false;
 
         currentData.removeExpiredData(now);
 
         if (currentData.getRefreshing().get()) needsRefresh = false;
+        else if (isAirplaneMode(context))  {
+            Log.d("WeatherGraph", "Airplane mode detected, not refreshing weather data");
+            needsRefresh = false;
+        }
         else if (currentData.needsRefresh()) needsRefresh = true;
         else if (lastRefreshIntervalShorterThan(now, refreshPeriod)) {
             needsRefresh = false;
