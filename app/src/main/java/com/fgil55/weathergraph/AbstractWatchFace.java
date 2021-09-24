@@ -135,11 +135,13 @@ public abstract class AbstractWatchFace extends com.huami.watch.watchface.Abstra
             Log.e(TAG, "AbstractWatchFace restart SLPT: " + e.toString());
         }
 
+        /*
         try {
             Log.d(TAG, "Trying to stop UbcService");
             new ProcessBuilder("su", "-c", "\"am stopservice com.huami.watch.wearservices/com.huami.watch.wearubc.UbcService\"").start();
         } catch (Throwable e) {
             Log.e(TAG, "Error stopping UbcService: " + e.toString());
         }
+         */
     }
 }

@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 public class WeatherData implements Serializable {
 
+    public static final LocalDateTime NOT_REFRESHED = LocalDateTime.parse("1970-01-01T00:00:00");
     private List<SunraiseSunset> sunraiseSunsets = new ArrayList<>();
     private List<ForecastItem> forecasts = new ArrayList<>();
     private float minTemp = 0, maxTemp = 0, deltaTemp = 0;
@@ -27,7 +28,7 @@ public class WeatherData implements Serializable {
     private int maxDays = 4;
 
     private final AtomicBoolean refreshing = new AtomicBoolean(false);
-    private final AtomicReference<LocalDateTime> lastRefreshed = new AtomicReference<>(LocalDateTime.parse("1970-01-01T00:00:00"));
+    private final AtomicReference<LocalDateTime> lastRefreshed = new AtomicReference<>(NOT_REFRESHED);
 
     public List<SunraiseSunset> getSunraiseSunsets() {
         return sunraiseSunsets;
@@ -82,6 +83,7 @@ public class WeatherData implements Serializable {
     }
 
     public void setLat(float lat) {
+        if (lat != this.lat) this.lastRefreshed.set(NOT_REFRESHED);
         this.lat = lat;
     }
 
@@ -90,6 +92,7 @@ public class WeatherData implements Serializable {
     }
 
     public void setLon(float lon) {
+        if (lon != this.lon) this.lastRefreshed.set(NOT_REFRESHED);
         this.lon = lon;
     }
 

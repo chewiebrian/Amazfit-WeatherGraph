@@ -1,6 +1,11 @@
 package com.fgil55.weathergraph.data;
 
+import android.util.Log;
+
 import com.huami.watch.watchface.WatchDataListener;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Adapter for the multiple listeners in one.
@@ -25,6 +30,6 @@ public class MultipleWatchDataListenerAdapter implements WatchDataListener {
         DataType type = DataType.fromValue(i);
         listener.onDataUpdate(type, type.getValue(objects));
 
-        //Log.w("DinoDevs-GreatFit", "Data Update: "+type.toString()+" = "+type.getValue(objects) );
+        Log.d("WeatherGraph", "Data Update: "+type.toString()+" = " + Stream.of(objects).map(Object::toString).collect(Collectors.joining(",")) );
     }
 }

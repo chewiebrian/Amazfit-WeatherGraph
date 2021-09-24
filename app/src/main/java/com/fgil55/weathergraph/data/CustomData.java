@@ -13,6 +13,8 @@ public class CustomData {
     public String phoneBattery;
     public String phoneAlarm;
     public String notifications;
+    public double lat;
+    public double lon;
 
     public CustomData(String parmStr1) {
         this.JSONstr = parmStr1;
@@ -58,6 +60,12 @@ public class CustomData {
                 }
                 if(json_data.has("notifications")) {
                     this.notifications = json_data.getString("notifications");
+                }
+                if (json_data.has("lat")) {
+                    this.lat = json_data.getDouble("lat");
+                }
+                if (json_data.has("lon")) {
+                    this.lon = json_data.getDouble("lon");
                 }
             }catch (JSONException e) {
                 // Nothing

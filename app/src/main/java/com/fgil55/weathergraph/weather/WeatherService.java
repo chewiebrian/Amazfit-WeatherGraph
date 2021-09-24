@@ -54,8 +54,12 @@ public class WeatherService {
             Log.d("WeatherGraph", "Airplane mode detected, not refreshing weather data");
             needsRefresh = false;
         }
-        else if (currentData.needsRefresh()) needsRefresh = true;
+        else if (currentData.needsRefresh()) {
+            Log.d("WeatherGraph", "More forecast data needed, forcing weather data refresh");
+            needsRefresh = true;
+        }
         else if (lastRefreshIntervalShorterThan(now, refreshPeriod)) {
+            Log.d("WeatherGraph", "Last refreshed interval too short, not refreshing weather data");
             needsRefresh = false;
         }
 
